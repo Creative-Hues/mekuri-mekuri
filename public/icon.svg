@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#f6f1e7"/>
+  <!-- 開いたノート -->
+  <path d="M256 150 C210 120 150 112 100 120 L100 370 C150 362 210 370 256 400 Z" fill="#ffffff" stroke="#3f4a5a" stroke-width="14" stroke-linejoin="round"/>
+  <path d="M256 150 C302 120 362 112 412 120 L412 370 C362 362 302 370 256 400 Z" fill="#fffdf8" stroke="#3f4a5a" stroke-width="14" stroke-linejoin="round"/>
+  <!-- めくれる角 -->
+  <path d="M412 300 L412 370 C392 368 370 368 350 370 C372 352 394 330 412 300 Z" fill="#e9b872" stroke="#3f4a5a" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M140 180 H220 M140 220 H220 M140 260 H200" stroke="#c9b9a0" stroke-width="12" stroke-linecap="round"/>
+</svg>

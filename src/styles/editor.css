@@ -1,0 +1,153 @@
+/* ---- エディタ(ページの中身) ---- */
+.page-editor-wrap {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.page-editor {
+  flex: 1;
+  min-height: 100%;
+  padding: 20px 22px 40px;
+  outline: none;
+  font-size: 16px;
+  line-height: 1.8;
+  word-break: break-word;
+  caret-color: var(--accent);
+}
+.page-editor > * + * {
+  margin-top: 0.35em;
+}
+.page-editor p {
+  margin: 0;
+}
+.page-editor h1,
+.page-editor h2,
+.page-editor h3 {
+  margin: 0.9em 0 0.2em;
+  line-height: 1.4;
+}
+.page-editor > h1:first-child,
+.page-editor > h2:first-child,
+.page-editor > h3:first-child {
+  margin-top: 0;
+}
+.page-editor h1 {
+  font-size: 1.6em;
+}
+.page-editor h2 {
+  font-size: 1.3em;
+}
+.page-editor h3 {
+  font-size: 1.1em;
+}
+.page-editor strong {
+  font-weight: 700;
+}
+.page-editor s {
+  text-decoration-thickness: 1.5px;
+  color: var(--ink-soft);
+}
+
+/* リスト */
+.page-editor ul,
+.page-editor ol {
+  margin: 0.2em 0;
+  padding-left: 1.5em;
+}
+.page-editor li > p {
+  margin: 0;
+}
+.page-editor li::marker {
+  color: var(--accent);
+}
+
+/* ToDoリスト */
+.page-editor ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.2em;
+}
+.page-editor ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+}
+.page-editor ul[data-type='taskList'] li > label {
+  flex: none;
+  user-select: none;
+  padding-top: 0.32em;
+}
+.page-editor ul[data-type='taskList'] li > div {
+  flex: 1;
+  min-width: 0;
+}
+.page-editor ul[data-type='taskList'] input[type='checkbox'] {
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.page-editor ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: var(--ink-faint);
+  text-decoration: line-through;
+}
+
+/* トグル見出し */
+.page-editor .toggle-heading {
+  display: grid;
+  grid-template-columns: 1.6em 1fr;
+  align-items: start;
+  margin: 0.6em 0 0.2em;
+}
+.page-editor .toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  margin-top: 0.15em;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.page-editor .toggle-btn:hover {
+  background: var(--bg);
+}
+.page-editor .toggle-btn svg {
+  transition: transform 0.15s ease;
+}
+.page-editor .toggle-heading[data-open='true'] > .toggle-btn svg {
+  transform: rotate(90deg);
+}
+.page-editor .toggle-content {
+  min-width: 0;
+}
+.page-editor .toggle-title {
+  font-weight: 700;
+  line-height: 1.4;
+}
+.page-editor .toggle-heading[data-level='1'] > .toggle-btn {
+  margin-top: 0.4em;
+}
+.page-editor .toggle-heading[data-level='1'] > .toggle-content > .toggle-title {
+  font-size: 1.6em;
+}
+.page-editor .toggle-heading[data-level='2'] > .toggle-btn {
+  margin-top: 0.25em;
+}
+.page-editor .toggle-heading[data-level='2'] > .toggle-content > .toggle-title {
+  font-size: 1.3em;
+}
+.page-editor .toggle-heading[data-level='3'] > .toggle-content > .toggle-title {
+  font-size: 1.1em;
+}
+.page-editor .toggle-content > :not(.toggle-title) {
+  margin-top: 0.3em;
+}
+/* 閉じているときは中身を隠す */
+.page-editor .toggle-heading[data-open='false'] > .toggle-content > :not(.toggle-title) {
+  display: none;
+}

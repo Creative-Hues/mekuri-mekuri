@@ -1,0 +1,235 @@
+/* ---- ノート画面 ---- */
+.note-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.note-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: calc(6px + var(--safe-top)) 8px 4px;
+}
+.note-title-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+.note-title-input:focus {
+  outline: none;
+  background: var(--surface);
+}
+.note-title-input::placeholder {
+  color: var(--ink-faint);
+}
+
+/* 仮のボタン列 */
+.temp-toolbar {
+  padding: 0 8px 6px;
+}
+.temp-toolbar-scroll {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px;
+}
+.temp-toolbar-scroll::-webkit-scrollbar {
+  display: none;
+}
+.tb-group {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  flex: none;
+}
+.tb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 15px;
+  cursor: pointer;
+}
+.tb-btn:hover:not(:disabled) {
+  background: var(--bg);
+  color: var(--ink);
+}
+.tb-btn.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.tb-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.tb-bold {
+  font-weight: 800;
+}
+.tb-strike {
+  text-decoration: line-through;
+}
+
+/* ページを並べる部分 */
+.pages-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+.pages-scroller {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.pages-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.page-slot {
+  flex: 0 0 100%;
+  height: 100%;
+  padding: 4px 12px 8px;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+.is-spread .page-slot {
+  flex-basis: 50%;
+}
+/* 見開きでは左ページの位置だけで止める */
+.is-spread .page-slot.slot-right {
+  scroll-snap-align: none;
+}
+.is-spread .page-slot.slot-left {
+  padding-right: 0;
+  padding-left: 16px;
+}
+.is-spread .page-slot.slot-right {
+  padding-left: 0;
+  padding-right: 16px;
+}
+
+.paper {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+/* 見開きの綴じ目 */
+.is-spread .slot-left .paper {
+  border-top-right-radius: 3px;
+  border-bottom-right-radius: 3px;
+  background-image: linear-gradient(to left, rgb(60 45 20 / 0.07), transparent 28px);
+}
+.is-spread .slot-right .paper {
+  border-top-left-radius: 3px;
+  border-bottom-left-radius: 3px;
+  border-left-color: rgb(60 45 20 / 0.12);
+  background-image: linear-gradient(to right, rgb(60 45 20 / 0.07), transparent 28px);
+}
+
+.paper-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--paper-edge) transparent;
+}
+.page-placeholder {
+  height: 100%;
+}
+.page-number {
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-faint);
+  padding: 2px 0 6px;
+}
+
+.add-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.add-page-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.add-page-btn:hover {
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.page-arrow {
+  flex: 0 0 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.page-arrow:hover:not(:disabled) {
+  color: var(--accent);
+}
+.page-arrow:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.note-footer {
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-soft);
+  padding: 0 0 calc(6px + var(--safe-bottom));
+  font-variant-numeric: tabular-nums;
+}
+
+.empty-state {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--ink-soft);
+}
