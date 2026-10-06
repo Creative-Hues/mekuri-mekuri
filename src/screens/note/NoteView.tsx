@@ -5,13 +5,18 @@ import { deleteNote, deletePage, getPages, insertPage, renameNote, reorderPages 
 import { useLayoutMode } from '../../layout/useLayoutMode'
 import { useKeyboardOpen } from '../../layout/useKeyboardInset'
 import { matchShortcut, withShortcut } from '../../editor/shortcuts'
+import { createSticky } from '../../editor/sticky'
+import { closedTogglesAround, findHeadingPos } from '../../editor/toc'
+import { SKIP_HISTORY_META } from '../../editor/ToggleHeading'
+import type { Editor } from '@tiptap/core'
 import { href, navigate } from '../../router'
 import { Icon } from '../../components/Icon'
 import { useDialog } from '../../components/Dialog'
 import { NoteSession } from './session'
-import { PageEditor } from './PageEditor'
+import { PageContent } from './PageEditor'
 import { Toolbar } from './Toolbar'
 import { PageList } from './PageList'
+import { TocPanel } from './TocPanel'
 
 /** 表示中のページの前後、これだけの範囲はエディタを作っておく(スワイプ先がすぐ表示されるように) */
 const MOUNT_BEHIND = 2
@@ -36,6 +41,7 @@ export function NoteView({
   const keyboardOpen = useKeyboardOpen() && !layout.toolbarTop
   const dialog = useDialog()
   const [pageListOpen, setPageListOpen] = useState(false)
+  const [tocOpen, setTocOpen] = useState(false)
   const note = useLiveQuery(() => db.notes.get(noteId), [noteId], null)
   const pages = useLiveQuery(() => getPages(noteId), [noteId])
 
@@ -151,26 +157,28 @@ export function NoteView({
   )
   const sessionRef = useRef(session)
   sessionRef.current = session
+  if (pages) session.syncPages(pages)
+
+  /** ページのエディタができたら fn を呼ぶ(ページを送った直後はまだできていないことがあるので少し待つ) */
+  const withEditor = useCallback(
+    (pageId: string, fn: (editor: Editor) => void) => {
+      let tries = 0
+      const attempt = () => {
+        const editor = session.getEditor(pageId)
+        if (editor && !editor.isDestroyed) fn(editor)
+        else if (tries++ < 20) setTimeout(attempt, 50)
+      }
+      attempt()
+    },
+    [session],
+  )
 
   // 追加したページにカーソルを置く(エディタができるまで少し待つ)
   useEffect(() => {
     if (!focusPageId) return
-    let tries = 0
-    let timer: ReturnType<typeof setTimeout>
-    const tryFocus = () => {
-      const editor = session.getEditor(focusPageId)
-      if (editor && !editor.isDestroyed) {
-        editor.commands.focus('end', { scrollIntoView: false })
-        setFocusPageId(null)
-      } else if (tries++ < 20) {
-        timer = setTimeout(tryFocus, 50)
-      } else {
-        setFocusPageId(null)
-      }
-    }
-    tryFocus()
-    return () => clearTimeout(timer)
-  }, [focusPageId, session])
+    setFocusPageId(null)
+    withEditor(focusPageId, (editor) => editor.commands.focus('end', { scrollIntoView: false }))
+  }, [focusPageId, withEditor])
 
   // アプリを閉じる・別のアプリに切り替えるときは、すぐ保存する
   useEffect(() => {
@@ -206,10 +214,27 @@ export function NoteView({
       }
       if (shortcut === 'pageList') {
         e.preventDefault()
+        setTocOpen(false)
         setPageListOpen((o) => !o)
         return
       }
-      if (document.querySelector('.page-list')) return
+      if (shortcut === 'toc') {
+        e.preventDefault()
+        setPageListOpen(false)
+        setTocOpen((o) => !o)
+        return
+      }
+      if (shortcut === 'addSticky') {
+        e.preventDefault()
+        addStickyRef.current()
+        return
+      }
+      if (e.key === 'Escape' && session.select.active) {
+        e.preventDefault()
+        session.setSelectMode(false)
+        return
+      }
+      if (document.querySelector('.page-list, .toc')) return
       const mod = e.ctrlKey || e.metaKey
       if (isEditing(e.target) || mod || e.altKey) return
       if (e.key === 'ArrowRight' || e.key === 'PageDown') {
@@ -256,6 +281,99 @@ export function NoteView({
     if (removed) session.history.recordDeletePage(removed.page, removed.index)
     if (session.activePageId === target.id) session.activePageId = null
     session.emit()
+  }
+
+  // ---- 付箋 ----
+
+  /** 付箋を追加する:操作中のページ(なければ見えているページ)の、今見えている範囲の真ん中に置く */
+  const addSticky = () => {
+    const list = pagesRef.current ?? []
+    if (!list.length) return
+    const visible = list.slice(currentRef.current, currentRef.current + perView).map((p) => p.id)
+    const pageId =
+      session.activePageId && visible.includes(session.activePageId)
+        ? session.activePageId
+        : (visible[0] ?? list[list.length - 1].id)
+    const scroll = scrollerRef.current?.querySelector<HTMLElement>(`[data-page-id="${pageId}"] .paper-scroll`)
+    const width = scroll?.querySelector<HTMLElement>('.page-content')?.clientWidth || 1
+    const centerY = scroll ? (scroll.scrollTop + scroll.clientHeight / 2) / width : 0.3
+    const sticky = createSticky('yellow', centerY)
+    session.focusStickyId = sticky.id
+    session.updateStickies(pageId, (s) => [...s, sticky])
+    showPage(pageId)
+  }
+  const addStickyRef = useRef(addSticky)
+  addStickyRef.current = addSticky
+
+  // ---- 行の移動(選択モードの「別のページへ」) ----
+
+  const moveSelectedToPage = async () => {
+    const list = pagesRef.current ?? []
+    const sources = session.selectedSources()
+    if (!sources.length) return
+    const index = await dialog.choose<number | null>({
+      title: '別のページへ移動',
+      message: `選んだ${session.selectedCount}行を、どのページへ移動しますか？`,
+      cancelValue: null,
+      buttons: [
+        { label: 'キャンセル', value: null, kind: 'plain' },
+        ...list.map((_, i) => ({ label: `${i + 1}ページ`, value: i, kind: 'plain' as const })),
+      ],
+    })
+    if (index === null) return
+    const where = await dialog.choose<'start' | 'end' | null>({
+      title: `${index + 1}ページへ移動`,
+      message: 'ページのどこに入れますか？',
+      cancelValue: null,
+      buttons: [
+        { label: 'キャンセル', value: null, kind: 'plain' },
+        { label: '先頭', value: 'start', kind: 'primary' },
+        { label: '末尾', value: 'end', kind: 'primary' },
+      ],
+    })
+    if (!where) return
+    const target = list[index]
+    const doc = session.getDoc(target.id)
+    if (!doc) return
+    const ok = await session.moveBlocks(sources, { pageId: target.id, pos: where === 'start' ? 0 : doc.content.size })
+    if (ok) {
+      session.setSelectMode(false)
+      showPage(target.id)
+    } else {
+      await dialog.alert({ message: '移動できませんでした。' })
+    }
+  }
+
+  // ---- 目次 ----
+
+  /** 目次から:ページを開き、index 番目の見出しまでスクロールする */
+  const jumpToHeading = (pageId: string, index: number) => {
+    setTocOpen(false)
+    showPage(pageId)
+    withEditor(pageId, (editor) => {
+      let pos = findHeadingPos(editor.state.doc, index)
+      if (pos === null) return
+      // 閉じたトグル見出しの中なら開く(開閉は元に戻すの対象にしない)
+      const closed = closedTogglesAround(editor.state.doc, pos)
+      if (closed.length) {
+        const tr = editor.state.tr
+        for (const p of closed) tr.setNodeMarkup(p, undefined, { ...tr.doc.nodeAt(p)!.attrs, open: true })
+        tr.setMeta(SKIP_HISTORY_META, true)
+        editor.view.dispatch(tr)
+        pos = findHeadingPos(editor.state.doc, index)
+        if (pos === null) return
+      }
+      const el = editor.view.nodeDOM(pos)
+      const scroller = editor.view.dom.closest('.paper-scroll')
+      if (!(el instanceof HTMLElement) || !scroller) return
+      const top = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 16
+      scroller.scrollTo({ top, behavior: 'smooth' })
+      // 一瞬色を付けて、どこへ移動したかわかるようにする
+      el.classList.remove('toc-flash')
+      void el.offsetWidth
+      el.classList.add('toc-flash')
+      setTimeout(() => el.classList.remove('toc-flash'), 1600)
+    })
   }
 
   /** ページ一覧で並び替えたとき */
@@ -354,6 +472,14 @@ export function NoteView({
         />
         <button
           className="icon-btn"
+          onClick={() => setTocOpen(true)}
+          aria-label="目次"
+          title={withShortcut('目次', 'toc')}
+        >
+          <Icon name="toc" />
+        </button>
+        <button
+          className="icon-btn"
           onClick={() => setPageListOpen(true)}
           aria-label="ページ一覧"
           title={withShortcut('ページ一覧', 'pageList')}
@@ -365,7 +491,9 @@ export function NoteView({
         </button>
       </header>
 
-      {layout.toolbarTop && <Toolbar session={session} top />}
+      {layout.toolbarTop && (
+        <Toolbar session={session} top onAddSticky={addSticky} onMoveToPage={() => void moveSelectedToPage()} />
+      )}
 
       <div className="pages-area">
         {layout.arrows && (
@@ -385,16 +513,18 @@ export function NoteView({
             return (
               <section
                 key={page.id}
+                data-page-id={page.id}
                 className={`page-slot${perView === 2 ? (i % 2 === 0 ? ' slot-left' : ' slot-right') : ''}`}
                 aria-label={`${i + 1}ページ目`}
               >
                 <div className="paper">
                   <div className="paper-scroll">
                     {mounted ? (
-                      <PageEditor
+                      <PageContent
                         session={session}
                         pageId={page.id}
                         storedContent={page.content}
+                        hoverMode={layout.toolbarTop}
                       />
                     ) : (
                       <div className="page-placeholder" />
@@ -433,7 +563,24 @@ export function NoteView({
         {pageLabel}
       </footer>
 
-      {!layout.toolbarTop && <Toolbar session={session} top={false} />}
+      {!layout.toolbarTop && (
+        <Toolbar
+          session={session}
+          top={false}
+          onAddSticky={addSticky}
+          onMoveToPage={() => void moveSelectedToPage()}
+        />
+      )}
+
+      {tocOpen && pages && (
+        <TocPanel
+          pages={pages}
+          session={session}
+          side={layout.toolbarTop}
+          onClose={() => setTocOpen(false)}
+          onJump={jumpToHeading}
+        />
+      )}
 
       {pageListOpen && pages && (
         <PageList

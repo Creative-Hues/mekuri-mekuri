@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/core'
-import { db, emptyDoc, newId, type Note, type Page } from './db'
+import { db, emptyDoc, newId, type Note, type Page, type Sticky } from './db'
 
 // ---- ノート ----
 
@@ -103,6 +103,16 @@ export async function reorderPages(noteId: string, pageIds: string[]): Promise<v
     )
     await reindex(sorted)
     await db.notes.update(noteId, { updatedAt: Date.now() })
+  })
+}
+
+export async function savePageStickies(pageId: string, stickies: Sticky[]): Promise<void> {
+  const now = Date.now()
+  await db.transaction('rw', db.notes, db.pages, async () => {
+    const page = await db.pages.get(pageId)
+    if (!page) return
+    await db.pages.update(pageId, { stickies, updatedAt: now })
+    await db.notes.update(page.noteId, { updatedAt: now })
   })
 }
 

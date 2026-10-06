@@ -28,6 +28,7 @@ function historyFor(noteId: string) {
     restorePage: async () => {},
     rename: async () => {},
     reorderPages: (ids) => reorderPages(noteId, ids),
+    setStickies: async () => {},
   })
 }
 

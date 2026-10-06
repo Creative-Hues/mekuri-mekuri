@@ -526,3 +526,244 @@
 .page-card-add:hover {
   color: var(--accent);
 }
+
+/* ---- 行の移動(ハンドル・選択モード) ---- */
+.block-handle.drag-handle {
+  position: absolute;
+  left: 2px;
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  margin-top: -1px;
+  border-radius: 6px;
+}
+.block-check {
+  position: absolute;
+  left: 6px;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  margin-top: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1.5px solid var(--ink-faint);
+  border-radius: 6px;
+  background: var(--paper);
+  color: #fff;
+  cursor: pointer;
+}
+.block-check.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+/* 選んだ行の背景(ハンドルとチェック欄が重なるので、その右側だけ) */
+.block-selected {
+  position: absolute;
+  left: 30px;
+  right: 14px;
+  z-index: 0;
+  background: var(--accent-soft);
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0.7;
+}
+/* 選択モードでは、選んだ行の上にハンドルを重ねる(チェック欄の右) */
+.block-check + .block-handle,
+.block-selected ~ .block-handle {
+  left: auto;
+  right: 4px;
+}
+/* 「ここへ移動」:タップした所へ移動する */
+.place-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  cursor: copy;
+}
+/* 差し込み線 */
+.drop-indicator {
+  position: fixed;
+  z-index: 60;
+  height: 3px;
+  margin-top: -1px;
+  background: var(--accent);
+  border-radius: 2px;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.7);
+}
+/* ドラッグ中に指の近くに出す札 */
+.drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 61;
+  padding: 4px 10px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+  border-radius: 999px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+/* ドラッグ中は文字が選ばれないようにする */
+.is-block-dragging {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grabbing;
+}
+
+/* 選択モードのバー */
+.select-bar-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px;
+}
+.select-bar-text {
+  flex: 1;
+  min-width: 8em;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.select-bar .btn {
+  min-height: 38px;
+  padding: 6px 12px;
+  font-size: 14px;
+}
+.select-bar .btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ---- 目次 ---- */
+.toc-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  background: rgb(40 30 20 / 0.2);
+}
+.toc {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.toc--side {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(340px, 90%);
+  border-left: 1px solid var(--line);
+  animation: toc-side-in 0.18s ease-out;
+}
+.toc--sheet {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 75%;
+  border-radius: 16px 16px 0 0;
+  padding-bottom: var(--safe-bottom);
+  animation: toc-sheet-in 0.18s ease-out;
+}
+@keyframes toc-side-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes toc-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+.toc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(8px + var(--safe-top)) 8px 4px 16px;
+}
+.toc--sheet .toc-header {
+  padding-top: 8px;
+}
+.toc-header h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.toc-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 8px 16px;
+}
+.toc-empty {
+  margin: 8px;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.toc-section + .toc-section {
+  margin-top: 8px;
+}
+.toc-page {
+  margin: 8px 8px 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+.toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.toc-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 38px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.toc-item:hover {
+  background: var(--bg);
+}
+.toc-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.toc-item--1 {
+  font-weight: 700;
+}
+.toc-item--2 {
+  padding-left: 22px;
+  font-weight: 600;
+}
+.toc-item--3 {
+  padding-left: 36px;
+  color: var(--ink-soft);
+}
+.toc-item .icon {
+  color: var(--ink-faint);
+}
+/* 目次から移動した見出しを一瞬目立たせる */
+.toc-flash {
+  animation: toc-flash 1.6s ease-out;
+  border-radius: 6px;
+}
+@keyframes toc-flash {
+  0%,
+  30% {
+    background: var(--accent-soft);
+  }
+  100% {
+    background: transparent;
+  }
+}

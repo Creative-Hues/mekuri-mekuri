@@ -1,9 +1,9 @@
 import type { Node as PMNode } from '@tiptap/pm/model'
-import type { Page } from '../db/db'
+import type { Page, Sticky } from '../db/db'
 
 /**
  * ノート単位の「元に戻す/やり直し」の履歴。
- * 文章の編集・ページの追加/削除/並び替え・タイトル変更を1本の履歴で扱う。
+ * 文章の編集・行の移動・付箋・ページの追加/削除/並び替え・タイトル変更を1本の履歴で扱う。
  * 履歴はメモリ上だけに持ち、アプリを閉じると消える。
  */
 
@@ -21,6 +21,18 @@ export type HistoryEntry =
   | { kind: 'deletePage'; page: Page; index: number }
   | { kind: 'rename'; before: string; after: string }
   | { kind: 'pageOrder'; before: string[]; after: string[] }
+  | {
+      kind: 'stickies'
+      pageId: string
+      /** 変更前・変更後のそのページの付箋すべて */
+      before: Sticky[]
+      after: Sticky[]
+      /** 同じ付箋への続けての文字入力を1回にまとめるための目印(null ならまとめない) */
+      mergeKey: string | null
+      lastAt: number
+    }
+  /** 複数の変更を1回の「元に戻す」で戻す(別のページへの行の移動など) */
+  | { kind: 'group'; entries: HistoryEntry[] }
 
 /** 実際に元に戻す/やり直す処理(ノート画面が用意する) */
 export interface HistoryApplier {
@@ -33,6 +45,8 @@ export interface HistoryApplier {
   rename(title: string): Promise<void>
   /** ページを pageIds の順に並べる */
   reorderPages(pageIds: string[]): Promise<void>
+  /** ページの付箋を指定のものにする */
+  setStickies(pageId: string, stickies: Sticky[]): Promise<void>
 }
 
 /** これ以内の連続入力は1回の「元に戻す」にまとめる(ミリ秒) */
@@ -132,6 +146,58 @@ export class NoteHistory {
     this.push({ kind: 'rename', before, after })
   }
 
+  /**
+   * 履歴に残さずに変更する(自分で記録する変更:行の移動など)。
+   * fn の中で起きたエディタの変更は recordText されない
+   */
+  silently(fn: () => void) {
+    const was = this.applying
+    this.applying = true
+    try {
+      fn()
+    } finally {
+      this.applying = was
+    }
+  }
+
+  /** 行の移動を記録する(関わったページの変更前後。複数ページでも1回で戻す) */
+  recordMove(changes: { pageId: string; before: PMNode; after: PMNode }[]) {
+    if (!changes.length) return
+    this.breakGroup = true
+    this.push({
+      kind: 'group',
+      entries: changes.map((c) => ({ kind: 'text', pageId: c.pageId, before: c.before, after: c.after, lastAt: 0 })),
+    })
+    this.breakGroup = true
+  }
+
+  /**
+   * 付箋の変更を記録する。
+   * mergeKey が同じで続けて(GROUP_DELAY 以内)変更したときは1回にまとめる(付箋の文字入力・ドラッグ中の移動)
+   */
+  recordStickies(pageId: string, before: Sticky[], after: Sticky[], mergeKey: string | null = null) {
+    if (this.applying) return
+    const now = Date.now()
+    const top = this.undoStack[this.undoStack.length - 1]
+    if (
+      mergeKey &&
+      !this.breakGroup &&
+      top?.kind === 'stickies' &&
+      top.pageId === pageId &&
+      top.mergeKey === mergeKey &&
+      now - top.lastAt < GROUP_DELAY &&
+      this.redoStack.length === 0
+    ) {
+      top.after = after
+      top.lastAt = now
+      return
+    }
+    this.breakGroup = false
+    this.push({ kind: 'stickies', pageId, before, after, mergeKey, lastAt: now })
+    // 付箋の変更のあとに本文を書いたら、別の「元に戻す」にする
+    if (!mergeKey) this.breakGroup = true
+  }
+
   recordPageOrder(before: string[], after: string[]) {
     if (before.join() === after.join()) return
     this.breakGroup = true
@@ -202,6 +268,14 @@ export class NoteHistory {
       case 'pageOrder':
         await a.reorderPages(dir === 'undo' ? entry.before : entry.after)
         break
+      case 'stickies':
+        await a.setStickies(entry.pageId, dir === 'undo' ? entry.before : entry.after)
+        break
+      case 'group': {
+        const list = dir === 'undo' ? [...entry.entries].reverse() : entry.entries
+        for (const e of list) await this.run(e, dir)
+        break
+      }
     }
   }
 }

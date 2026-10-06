@@ -22,11 +22,17 @@ export type ShortcutId =
   | 'undo'
   | 'redo'
   | 'pageList'
+  | 'moveUp'
+  | 'moveDown'
+  | 'addSticky'
+  | 'toc'
 
 interface KeyCombo {
   code: string
   shift?: boolean
   alt?: boolean
+  /** Ctrl(Macは⌘)を押さずに使う(行の移動の Alt+↑ など) */
+  noMod?: boolean
 }
 
 interface ShortcutDef {
@@ -50,6 +56,10 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'orderedList', label: '番号付きリスト', combos: [{ code: 'Digit7', shift: true }] },
   { id: 'bulletList', label: '箇条書き', combos: [{ code: 'Digit8', shift: true }] },
   { id: 'taskList', label: 'ToDoリスト', combos: [{ code: 'Digit9', shift: true }] },
+  { id: 'moveUp', label: '行を上へ移動', combos: [{ code: 'ArrowUp', alt: true, noMod: true }] },
+  { id: 'moveDown', label: '行を下へ移動', combos: [{ code: 'ArrowDown', alt: true, noMod: true }] },
+  { id: 'addSticky', label: '付箋を追加', combos: [{ code: 'KeyN', alt: true }] },
+  { id: 'toc', label: '目次を開く', combos: [{ code: 'KeyT', alt: true }] },
   { id: 'pageList', label: 'ページ一覧を開く', combos: [{ code: 'KeyP', alt: true }] },
 ]
 
@@ -62,15 +72,16 @@ export const IS_MAC = /Mac|iPhone|iPad|iPod/.test(
 
 /**
  * キー入力がどのショートカットか調べる。どれでもなければ null。
- * すべてのショートカットは Ctrl(Macは⌘)を押しながら使う
+ * 行の移動(Alt+↑↓)以外は、Ctrl(Macは⌘)を押しながら使う
  */
 export function matchShortcut(e: KeyboardEvent): ShortcutId | null {
   // 日本語入力の変換中は、ショートカットとして扱わない
   if (e.isComposing) return null
   const mod = IS_MAC ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey
-  if (!mod) return null
+  const none = !e.metaKey && !e.ctrlKey
   for (const s of SHORTCUTS) {
     for (const c of s.combos) {
+      if (c.noMod ? !none : !mod) continue
       if (e.code === c.code && e.shiftKey === !!c.shift && e.altKey === !!c.alt) return s.id
     }
   }
@@ -80,6 +91,9 @@ export function matchShortcut(e: KeyboardEvent): ShortcutId | null {
 function keyName(code: string): string {
   if (code.startsWith('Key')) return code.slice(3)
   if (code.startsWith('Digit')) return code.slice(5)
+  // 矢印は絵文字にならない普通の文字(U+2191・U+2193)を使う
+  if (code === 'ArrowUp') return '↑'
+  if (code === 'ArrowDown') return '↓'
   return code
 }
 
@@ -88,7 +102,7 @@ export function shortcutText(id: ShortcutId, which = 0): string {
   const def = SHORTCUTS.find((s) => s.id === id)
   const c = def?.combos[which]
   if (!c) return ''
-  const parts = [IS_MAC ? '⌘' : 'Ctrl']
+  const parts = c.noMod ? [] : [IS_MAC ? '⌘' : 'Ctrl']
   if (c.shift) parts.push('Shift')
   if (c.alt) parts.push(IS_MAC ? 'Option' : 'Alt')
   parts.push(keyName(c.code))

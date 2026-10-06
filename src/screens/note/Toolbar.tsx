@@ -5,6 +5,7 @@ import {
   applyLine,
   applyMarker,
   applyTextColor,
+  canUseHeadings,
   setBody,
   toggleBold,
   toggleBullet,
@@ -33,7 +34,18 @@ type Panel = 'textColor' | 'marker' | 'line' | null
  * PC:タイトルの下に常に表示。スマホ・タブレット:画面の下に表示し、キーボードが出たらそのすぐ上に来る
  * (アプリ全体の高さを見えている範囲に合わせているため。useKeyboardInset.ts)
  */
-export function Toolbar({ session, top }: { session: NoteSession; top: boolean }) {
+export function Toolbar({
+  session,
+  top,
+  onAddSticky,
+  onMoveToPage,
+}: {
+  session: NoteSession
+  top: boolean
+  onAddSticky: () => void
+  /** 選択モードの「別のページへ」 */
+  onMoveToPage: () => void
+}) {
   const [, rerender] = useReducer((n: number) => n + 1, 0)
   useEffect(() => {
     const a = session.subscribe(rerender)
@@ -50,6 +62,8 @@ export function Toolbar({ session, top }: { session: NoteSession; top: boolean }
 
   const editor = session.activeEditor
   const usable = !!editor && !editor.isDestroyed
+  /** 見出しを使えるか(付箋の中では使えない) */
+  const headings = usable && canUseHeadings(editor)
   const active = (name: string, attrs?: Record<string, unknown>) => usable && editor.isActive(name, attrs)
 
   /** 書式の操作(1回の「元に戻す」で戻せるよう、前後の入力と分ける) */
@@ -159,6 +173,10 @@ export function Toolbar({ session, top }: { session: NoteSession; top: boolean }
     </div>
   )
 
+  if (session.select.active) {
+    return <SelectBar session={session} top={top} onMoveToPage={onMoveToPage} />
+  }
+
   return (
     <div className={`toolbar ${top ? 'toolbar--top' : 'toolbar--bottom'}`} role="toolbar" aria-label="書式">
       {!top && panelView}
@@ -182,34 +200,34 @@ export function Toolbar({ session, top }: { session: NoteSession; top: boolean }
             label={withShortcut('大見出し', 'h1')}
             text="大"
             active={headingActive(1)}
-            disabled={!usable}
+            disabled={!headings}
             onClick={() => run((e) => toggleHeadingLevel(e, 1))}
           />
           <TBtn
             label={withShortcut('中見出し', 'h2')}
             text="中"
             active={headingActive(2)}
-            disabled={!usable}
+            disabled={!headings}
             onClick={() => run((e) => toggleHeadingLevel(e, 2))}
           />
           <TBtn
             label={withShortcut('小見出し', 'h3')}
             text="小"
             active={headingActive(3)}
-            disabled={!usable}
+            disabled={!headings}
             onClick={() => run((e) => toggleHeadingLevel(e, 3))}
           />
           <TBtn
             label="トグル見出し"
             icon="toggle"
             active={active('toggleHeading')}
-            disabled={!usable}
+            disabled={!headings}
             onClick={() => run(toggleToggle)}
           />
           <TBtn
             label={withShortcut('本文に戻す', 'body')}
             text="本"
-            disabled={!usable}
+            disabled={!headings}
             onClick={() => run(setBody)}
           />
         </Group>
@@ -286,6 +304,17 @@ export function Toolbar({ session, top }: { session: NoteSession; top: boolean }
             active={active('taskList')}
             disabled={!usable}
             onClick={() => run(toggleTodo)}
+          />
+        </Group>
+        <Group>
+          <TBtn label={withShortcut('付箋を追加', 'addSticky')} icon="sticky" onClick={onAddSticky} />
+          <TBtn
+            label="行を選ぶ(まとめて移動)"
+            icon="select"
+            onClick={() => {
+              setPanel(null)
+              session.setSelectMode(true)
+            }}
           />
         </Group>
         {!top && keyboardOpen && (
@@ -369,5 +398,57 @@ function Swatch(props: {
     >
       {props.children}
     </button>
+  )
+}
+
+/**
+ * 選択モードのバー(ツールバーの代わりに出す)。
+ * 選んだ行を「ここへ移動」(次にタップした所へ)・「別のページへ」移動する
+ */
+function SelectBar({
+  session,
+  top,
+  onMoveToPage,
+}: {
+  session: NoteSession
+  top: boolean
+  onMoveToPage: () => void
+}) {
+  const count = session.selectedCount
+  const placing = session.select.placing
+  return (
+    <div
+      className={`toolbar select-bar ${top ? 'toolbar--top' : 'toolbar--bottom'}`}
+      role="toolbar"
+      aria-label="行の選択"
+    >
+      <div className="select-bar-row">
+        <span className="select-bar-text" aria-live="polite">
+          {placing ? '移動先をタップしてください' : count ? `${count}行を選択中` : '動かしたい行を選んでください'}
+        </span>
+        {placing ? (
+          <button type="button" className="btn btn--plain" onClick={() => session.setPlacing(false)}>
+            戻る
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={!count}
+              onClick={() => session.setPlacing(true)}
+            >
+              ここへ移動
+            </button>
+            <button type="button" className="btn btn--plain" disabled={!count} onClick={onMoveToPage}>
+              別のページへ
+            </button>
+            <button type="button" className="btn btn--plain" onClick={() => session.setSelectMode(false)}>
+              やめる
+            </button>
+          </>
+        )}
+      </div>
+    </div>
   )
 }

@@ -33,6 +33,13 @@
   --mk-blue: #d3e5f5;
   --mk-purple: #e4d9f2;
   --mk-gray: #e6e4df;
+  /* 付箋の色 */
+  --st-yellow: #fff3a8;
+  --st-pink: #ffd9e6;
+  --st-orange: #ffdcb5;
+  --st-green: #d4f0cf;
+  --st-blue: #d3e8fb;
+  --st-purple: #e6dcfa;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);

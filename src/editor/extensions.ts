@@ -23,6 +23,8 @@ export interface EditorHooks {
   redo: () => void
   /** 書式の変更を、前後の入力とは別の「元に戻す」1回分にする */
   closeGroup: () => void
+  /** カーソルのある行を1つ上/下へ動かす(付箋のエディタでは使わない)。動かしたら true */
+  moveLine?: (dir: 'up' | 'down') => boolean
 }
 
 /** エディタの中で使うショートカットと、その処理 */
@@ -68,6 +70,13 @@ const EditorShortcuts = Extension.create<{ hooks: EditorHooks | null }>({
               hooks?.[id]()
               return true
             }
+            if (id === 'moveUp' || id === 'moveDown') {
+              if (!hooks?.moveLine) return false
+              // 端でそれ以上動かせないときも、カーソルが飛ばないよう処理済みにする
+              event.preventDefault()
+              hooks.moveLine(id === 'moveUp' ? 'up' : 'down')
+              return true
+            }
             const action = FORMAT_ACTIONS[id]
             if (!action) return false // ノート画面で扱うもの(ページ一覧など)
             event.preventDefault()
@@ -103,6 +112,32 @@ export function buildExtensions(hooks: EditorHooks): AnyExtension[] {
     TaskItem.configure({ nested: true }),
     ToggleTitle,
     ToggleHeading,
+    TextColor,
+    Marker,
+    Line,
+    EditorShortcuts.configure({ hooks }),
+  ]
+}
+
+/**
+ * 付箋のエディタで使う機能。
+ * 文字の装飾とリストは本文と同じ。見出し・トグル見出しは付箋には大きすぎるので使わない
+ */
+export function buildStickyExtensions(hooks: EditorHooks): AnyExtension[] {
+  return [
+    StarterKit.configure({
+      heading: false,
+      undoRedo: false,
+      blockquote: false,
+      code: false,
+      codeBlock: false,
+      horizontalRule: false,
+      italic: false,
+      underline: false,
+      link: false,
+    }),
+    TaskList,
+    TaskItem.configure({ nested: true }),
     TextColor,
     Marker,
     Line,

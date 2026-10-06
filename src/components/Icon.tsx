@@ -26,6 +26,11 @@ const paths: Record<string, string> = {
   keyboardHide:
     'M2.5 3.5 H17.5 V12.5 H2.5 Z M5.5 6.5 H6 M8.5 6.5 H9 M11.5 6.5 H12 M14.5 6.5 H14 M6.5 9.5 H13.5 M7 15.5 L10 18 L13 15.5',
   none: 'M10 3 A7 7 0 1 0 10 17 A7 7 0 1 0 10 3 Z M5 15 L15 5',
+  sticky: 'M3.5 3.5 H16.5 V12 L12 16.5 H3.5 Z M16.5 12 H12 V16.5 M6.5 7.5 H13.5 M6.5 10.5 H10.5',
+  select: 'M3 4 H7 V8 H3 Z M3.8 6 L4.8 7 L6.4 5 M3 12 H7 V16 H3 Z M10 6 H17 M10 14 H17',
+  toc: 'M3.5 5 H5 M8 5 H16.5 M5.5 10 H7 M10 10 H16.5 M5.5 15 H7 M10 15 H16.5',
+  dots: 'M4.6 10 H5.4 M9.6 10 H10.4 M14.6 10 H15.4',
+  check: 'M4.5 10.5 L8.5 14.5 L15.5 6',
 }
 
 export type IconName = keyof typeof paths

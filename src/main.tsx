@@ -6,6 +6,7 @@ import './styles/base.css'
 import './styles/editor.css'
 import './styles/note.css'
 import './styles/screens.css'
+import './styles/sticky.css'
 
 // データを消されにくくするようブラウザに頼む
 void requestPersist()

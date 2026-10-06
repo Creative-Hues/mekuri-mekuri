@@ -10,6 +10,9 @@ import type { LineColorName, LineStyleName, MarkerColorName, TextColorName } fro
 
 export type HeadingLevel = ToggleLevel
 
+/** 見出しを使えるエディタか(付箋のエディタには見出しがない) */
+export const canUseHeadings = (editor: Editor) => !!editor.schema.nodes.heading
+
 /** 今の行の見出しの大きさ(トグル見出しを含む)。見出しでなければ null */
 export function currentHeadingLevel(editor: Editor): HeadingLevel | null {
   for (const l of [1, 2, 3] as const) {
@@ -21,18 +24,21 @@ export function currentHeadingLevel(editor: Editor): HeadingLevel | null {
 
 /** 見出しにする(同じ大きさならふつうの行に戻す)。トグル見出しの中ならトグルの大きさを変える */
 export function toggleHeadingLevel(editor: Editor, level: HeadingLevel) {
+  if (!canUseHeadings(editor)) return
   if (editor.isActive('toggleTitle')) editor.chain().focus().toggleToggleHeading(level).run()
   else editor.chain().focus().toggleHeading({ level }).run()
 }
 
 /** トグル見出し。ふつうの見出しの上で押したら、その大きさのトグル見出しにする */
 export function toggleToggle(editor: Editor) {
+  if (!editor.schema.nodes.toggleHeading) return
   const level = currentHeadingLevel(editor) ?? 2
   editor.chain().focus().toggleToggleHeading(level).run()
 }
 
 /** ふつうの行(本文)に戻す */
 export function setBody(editor: Editor) {
+  if (!canUseHeadings(editor)) return
   if (editor.isActive('toggleTitle')) {
     // 同じ大きさを指定すると、トグル見出しが解除される
     const level = currentHeadingLevel(editor) ?? 2
