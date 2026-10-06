@@ -3,7 +3,7 @@ import type { Page } from '../db/db'
 
 /**
  * ノート単位の「元に戻す/やり直し」の履歴。
- * 文章の編集・ページの追加/削除・タイトル変更を1本の履歴で扱う。
+ * 文章の編集・ページの追加/削除/並び替え・タイトル変更を1本の履歴で扱う。
  * 履歴はメモリ上だけに持ち、アプリを閉じると消える。
  */
 
@@ -20,6 +20,7 @@ export type HistoryEntry =
   | { kind: 'addPage'; page: Page; index: number }
   | { kind: 'deletePage'; page: Page; index: number }
   | { kind: 'rename'; before: string; after: string }
+  | { kind: 'pageOrder'; before: string[]; after: string[] }
 
 /** 実際に元に戻す/やり直す処理(ノート画面が用意する) */
 export interface HistoryApplier {
@@ -30,6 +31,8 @@ export interface HistoryApplier {
   /** ページを index の位置に戻す */
   restorePage(page: Page, index: number): Promise<void>
   rename(title: string): Promise<void>
+  /** ページを pageIds の順に並べる */
+  reorderPages(pageIds: string[]): Promise<void>
 }
 
 /** これ以内の連続入力は1回の「元に戻す」にまとめる(ミリ秒) */
@@ -129,6 +132,12 @@ export class NoteHistory {
     this.push({ kind: 'rename', before, after })
   }
 
+  recordPageOrder(before: string[], after: string[]) {
+    if (before.join() === after.join()) return
+    this.breakGroup = true
+    this.push({ kind: 'pageOrder', before, after })
+  }
+
   undo(): Promise<void> {
     return this.enqueue(async () => {
       const entry = this.undoStack.pop()
@@ -189,6 +198,9 @@ export class NoteHistory {
         break
       case 'rename':
         await a.rename(dir === 'undo' ? entry.before : entry.after)
+        break
+      case 'pageOrder':
+        await a.reorderPages(dir === 'undo' ? entry.before : entry.after)
         break
     }
   }

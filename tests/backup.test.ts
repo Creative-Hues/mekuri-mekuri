@@ -1,0 +1,126 @@
+import { beforeEach, describe, expect, it } from 'vitest'
+import { db } from '../src/db/db'
+import { createNote, getPages } from '../src/db/repo'
+import { BackupError, parseBackup } from '../src/backup/format'
+import { importAppend, importReplace } from '../src/backup/import'
+
+// バックアップファイルの読み込み(特に v1 = アプリ 0.1.0 で書き出したファイル)のテスト
+
+beforeEach(async () => {
+  await db.notes.clear()
+  await db.pages.clear()
+})
+
+const content = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'こんにちは' }] }] }
+
+/** 0.1.0 のアプリが書き出したのと同じ形のファイル */
+function v1File() {
+  return JSON.stringify({
+    app: 'mekuri-mekuri',
+    schemaVersion: 1,
+    appVersion: '0.1.0',
+    exportedAt: 1759740000000,
+    notes: [{ id: 'n1', title: '旅行メモ', order: 0, createdAt: 1, updatedAt: 2 }],
+    pages: [
+      { id: 'p1', noteId: 'n1', order: 0, content, createdAt: 1, updatedAt: 2 },
+      { id: 'p2', noteId: 'n1', order: 1, content, createdAt: 1, updatedAt: 2 },
+    ],
+  })
+}
+
+describe('バックアップの読み取り(parseBackup)', () => {
+  it('v1 のファイルは v2 の形に変換される(付箋は空)', () => {
+    const backup = parseBackup(v1File())
+    expect(backup.schemaVersion).toBe(2)
+    expect(backup.notes).toHaveLength(1)
+    expect(backup.pages).toHaveLength(2)
+    for (const p of backup.pages) {
+      expect(p.stickies).toEqual([])
+      expect(p.content).toEqual(content)
+    }
+  })
+
+  it('v2 のファイルはそのまま読める(付箋も)', () => {
+    const sticky = {
+      id: 's1', x: 0.1, y: 0.2, w: 0.3, h: 0.3, color: 'yellow',
+      content: { type: 'doc', content: [{ type: 'paragraph' }] }, createdAt: 1, updatedAt: 1,
+    }
+    const file = JSON.stringify({
+      app: 'mekuri-mekuri', schemaVersion: 2, appVersion: '0.2.0', exportedAt: 1,
+      notes: [{ id: 'n1', title: 'a', order: 0, createdAt: 1, updatedAt: 1 }],
+      pages: [{ id: 'p1', noteId: 'n1', order: 0, content, stickies: [sticky], createdAt: 1, updatedAt: 1 }],
+    })
+    expect(parseBackup(file).pages[0].stickies).toEqual([sticky])
+  })
+
+  it('今より新しい版のファイルは読み込まない', () => {
+    const file = JSON.stringify({ app: 'mekuri-mekuri', schemaVersion: 99, notes: [], pages: [] })
+    expect(() => parseBackup(file)).toThrow(BackupError)
+    expect(() => parseBackup(file)).toThrow(/新しいバージョン/)
+  })
+
+  it('壊れた付箋が入ったファイルは読み込まない', () => {
+    const file = JSON.stringify({
+      app: 'mekuri-mekuri', schemaVersion: 2, appVersion: '0.2.0', exportedAt: 1,
+      notes: [{ id: 'n1', title: 'a', order: 0 }],
+      pages: [{ id: 'p1', noteId: 'n1', order: 0, content, stickies: [{ id: 's1', x: 'abc' }] }],
+    })
+    expect(() => parseBackup(file)).toThrow(/付箋の情報が壊れています/)
+  })
+
+  it('めくりめくりのファイルでなければ読み込まない', () => {
+    expect(() => parseBackup('{"hello":1}')).toThrow(BackupError)
+    expect(() => parseBackup('これはJSONではない')).toThrow(BackupError)
+  })
+})
+
+describe('v1 のバックアップを読み込む', () => {
+  it('置き換える:今のノートは消え、ファイルのノートだけになる。付箋は空', async () => {
+    await createNote('消えるノート')
+    await importReplace(parseBackup(v1File()))
+    const notes = await db.notes.toArray()
+    expect(notes.map((n) => n.title)).toEqual(['旅行メモ'])
+    const pages = await getPages('n1')
+    expect(pages.map((p) => p.id)).toEqual(['p1', 'p2'])
+    expect(pages.every((p) => Array.isArray(p.stickies) && p.stickies.length === 0)).toBe(true)
+  })
+
+  it('追加する:今のノートは残り、ファイルのノートは新しい id で本棚の先頭に入る', async () => {
+    const existing = await createNote('前からあるノート')
+    await importAppend(parseBackup(v1File()))
+
+    const notes = await db.notes.orderBy('order').toArray()
+    expect(notes.map((n) => n.title)).toEqual(['旅行メモ', '前からあるノート'])
+    const added = notes[0]
+    expect(added.id).not.toBe('n1')
+    expect(await db.notes.get(existing.id)).toBeTruthy()
+
+    const pages = await getPages(added.id)
+    expect(pages).toHaveLength(2)
+    expect(pages.map((p) => p.id)).not.toContain('p1')
+    expect(pages.every((p) => p.stickies.length === 0 && p.content.type === 'doc')).toBe(true)
+  })
+
+  it('同じ v1 ファイルを2回「追加」しても、id がぶつからない', async () => {
+    await importAppend(parseBackup(v1File()))
+    await importAppend(parseBackup(v1File()))
+    expect(await db.notes.count()).toBe(2)
+    expect(await db.pages.count()).toBe(4)
+  })
+
+  it('追加するとき、付箋の id も振り直す', async () => {
+    const file = JSON.stringify({
+      app: 'mekuri-mekuri', schemaVersion: 2, appVersion: '0.2.0', exportedAt: 1,
+      notes: [{ id: 'n1', title: 'a', order: 0, createdAt: 1, updatedAt: 1 }],
+      pages: [{
+        id: 'p1', noteId: 'n1', order: 0, content, createdAt: 1, updatedAt: 1,
+        stickies: [{ id: 's1', x: 0, y: 0, w: 0.3, h: 0.3, color: 'pink', content, createdAt: 1, updatedAt: 1 }],
+      }],
+    })
+    await importAppend(parseBackup(file))
+    const page = (await db.pages.toArray())[0]
+    expect(page.stickies).toHaveLength(1)
+    expect(page.stickies[0].id).not.toBe('s1')
+    expect(page.stickies[0].color).toBe('pink')
+  })
+})

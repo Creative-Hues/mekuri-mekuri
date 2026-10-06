@@ -21,6 +21,7 @@ export async function createNote(title = ''): Promise<Note> {
       noteId: note.id,
       order: 0,
       content: emptyDoc(),
+      stickies: [],
       createdAt: now,
       updatedAt: now,
     })
@@ -64,7 +65,7 @@ export async function insertPage(noteId: string, index: number, page?: Page): Pr
     const pages = await getPages(noteId)
     const record: Page = page
       ? { ...page, noteId, updatedAt: now }
-      : { id: newId(), noteId, order: 0, content: emptyDoc(), createdAt: now, updatedAt: now }
+      : { id: newId(), noteId, order: 0, content: emptyDoc(), stickies: [], createdAt: now, updatedAt: now }
     await db.pages.put(record)
     const at = Math.max(0, Math.min(index, pages.length))
     pages.splice(at, 0, record)
@@ -86,6 +87,22 @@ export async function deletePage(pageId: string): Promise<{ page: Page; index: n
     await reindex(pages)
     await db.notes.update(page.noteId, { updatedAt: Date.now() })
     return { page, index }
+  })
+}
+
+/**
+ * ページの並びを pageIds の順にする(ページ一覧での並び替え・元に戻す用)。
+ * pageIds にないページは後ろに残す
+ */
+export async function reorderPages(noteId: string, pageIds: string[]): Promise<void> {
+  await db.transaction('rw', db.notes, db.pages, async () => {
+    const pages = await getPages(noteId)
+    const rank = new Map(pageIds.map((id, i) => [id, i]))
+    const sorted = [...pages].sort(
+      (a, b) => (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity) || a.order - b.order,
+    )
+    await reindex(sorted)
+    await db.notes.update(noteId, { updatedAt: Date.now() })
   })
 }
 

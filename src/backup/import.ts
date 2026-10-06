@@ -25,7 +25,12 @@ export async function importAppend(backup: Backup): Promise<void> {
     })
     const pages: Page[] = backup.pages
       .filter((p) => idMap.has(p.noteId))
-      .map((p) => ({ ...p, id: newId(), noteId: idMap.get(p.noteId)! }))
+      .map((p) => ({
+        ...p,
+        id: newId(),
+        noteId: idMap.get(p.noteId)!,
+        stickies: p.stickies.map((s) => ({ ...s, id: newId() })),
+      }))
     await db.notes.bulkAdd(notes)
     await db.pages.bulkAdd(pages)
   })

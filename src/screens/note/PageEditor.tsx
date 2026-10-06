@@ -18,6 +18,7 @@ export function PageEditor({ session, pageId, storedContent }: Props) {
       buildExtensions({
         undo: () => void session.history.undo(),
         redo: () => void session.history.redo(),
+        closeGroup: () => session.history.closeGroup(),
       }),
     [session],
   )

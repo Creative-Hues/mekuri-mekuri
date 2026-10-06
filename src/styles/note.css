@@ -1,5 +1,6 @@
 /* ---- ノート画面 ---- */
 .note-view {
+  position: relative;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -31,19 +32,130 @@
   color: var(--ink-faint);
 }
 
-/* 仮のボタン列 */
-.temp-toolbar {
+/* ---- 書式ツールバー ---- */
+.toolbar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* PC:タイトルの下 */
+.toolbar--top {
   padding: 0 8px 6px;
 }
-.temp-toolbar-scroll {
+/* スマホ・タブレット:画面の下(キーボードが出たらそのすぐ上) */
+.toolbar--bottom {
+  padding: 6px 8px calc(6px + var(--safe-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+.is-keyboard .toolbar--bottom {
+  padding-bottom: 6px;
+}
+.toolbar-row {
   display: flex;
   gap: 6px;
   overflow-x: auto;
   scrollbar-width: none;
   padding: 2px;
 }
-.temp-toolbar-scroll::-webkit-scrollbar {
+.toolbar-row::-webkit-scrollbar {
   display: none;
+}
+.toolbar-panel {
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.toolbar--bottom .toolbar-panel {
+  box-shadow: none;
+}
+.line-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.swatch--wide {
+  padding: 0 10px;
+}
+.swatch:hover {
+  background: var(--bg);
+}
+.swatch.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.swatch-a {
+  font-weight: 700;
+  font-size: 18px;
+}
+.swatch-fill {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid rgb(0 0 0 / 0.06);
+}
+.swatch-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+}
+.swatch-dot--ink {
+  background: var(--ink);
+}
+.swatch-line,
+.tb-line {
+  color: var(--ink);
+  text-decoration-line: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.22em;
+  text-decoration-skip-ink: none;
+}
+.swatch-line[data-line-style='wavy'],
+.tb-line[data-line-style='wavy'] {
+  text-decoration-style: wavy;
+  text-decoration-thickness: 1.2px;
+}
+.swatch-line[data-line-style='double'],
+.tb-line[data-line-style='double'] {
+  text-decoration-style: double;
+}
+.swatch-line[data-line-style='dotted'],
+.tb-line[data-line-style='dotted'] {
+  text-decoration-style: dotted;
+  text-decoration-thickness: 2.5px;
+}
+.tb-color {
+  font-weight: 700;
+  line-height: 1.1;
+  border-bottom: 3px solid;
+  padding: 0 2px;
+}
+.tb-marker {
+  display: inline-flex;
+  border-radius: 6px;
+  padding: 2px;
+  color: var(--ink);
 }
 .tb-group {
   display: flex;
@@ -232,4 +344,185 @@
   justify-content: center;
   gap: 12px;
   color: var(--ink-soft);
+}
+
+/* 下にツールバーがあるときは、画面下端の余白はツールバー側でとる */
+.has-bottom-toolbar .note-footer {
+  padding-bottom: 4px;
+}
+/* キーボードが出ているときは、ページ番号を隠して書く場所を広くする */
+.is-keyboard .note-footer {
+  display: none;
+}
+
+/* ---- ドラッグ用の ≡ ハンドル(共通) ---- */
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: grab;
+  /* 指で押したとき、画面のスクロールではなくドラッグになるように */
+  touch-action: none;
+  flex: none;
+}
+.drag-handle:hover {
+  color: var(--ink);
+  background: var(--bg);
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+.drag-handle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---- ページ一覧 ---- */
+.page-list {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  animation: page-list-in 0.16s ease-out;
+}
+@keyframes page-list-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.page-list-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: calc(8px + var(--safe-top)) 8px 8px 16px;
+}
+.page-list-header h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.page-list-hint {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.page-list-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 16px calc(16px + var(--safe-bottom));
+}
+.page-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 14px;
+}
+.page-card {
+  display: flex;
+  flex-direction: column;
+  aspect-ratio: 3 / 4;
+  background: var(--paper);
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  position: relative;
+}
+.page-card.is-current {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow);
+}
+.page-card.is-dragging {
+  z-index: 2;
+  opacity: 0.9;
+  box-shadow: 0 10px 30px rgb(60 45 20 / 0.25);
+}
+.page-card-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 12px 4px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+.page-card-line {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+.page-card-line--h1,
+.page-card-line--h2,
+.page-card-line--h3 {
+  font-weight: 700;
+  color: var(--ink);
+}
+.page-card-line--h1 {
+  font-size: 14px;
+}
+.page-card-line--h2 {
+  font-size: 13px;
+}
+.page-card-empty {
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+.page-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--line);
+  padding: 0 2px;
+}
+.page-card-number {
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.page-card-delete:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.page-card--add {
+  border: 2px dashed var(--line);
+  background: transparent;
+  box-shadow: none;
+}
+.page-card-add {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.page-card-add:hover {
+  color: var(--accent);
 }

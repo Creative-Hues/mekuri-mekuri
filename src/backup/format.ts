@@ -1,9 +1,9 @@
 import { SCHEMA_VERSION, type Note, type Page } from '../db/db'
 
-/** バックアップファイルの中身(スキーマ v1) */
-export interface BackupV1 {
+/** バックアップファイルの中身(スキーマ v2) */
+export interface BackupV2 {
   app: 'mekuri-mekuri'
-  schemaVersion: 1
+  schemaVersion: 2
   appVersion: string
   exportedAt: number
   notes: Note[]
@@ -11,7 +11,7 @@ export interface BackupV1 {
 }
 
 /** 今のアプリが扱う形 */
-export type Backup = BackupV1
+export type Backup = BackupV2
 
 export class BackupError extends Error {}
 
@@ -20,7 +20,14 @@ export class BackupError extends Error {}
  * スキーマを上げたら、ここに「vN → vN+1」の変換を足していく。
  */
 const migrations: Record<number, (data: any) => any> = {
-  // 例) 1: (d) => ({ ...d, schemaVersion: 2, notes: d.notes.map((n) => ({ ...n, favorite: false })) }),
+  // v1 → v2:ページに付箋(stickies)を追加
+  1: (d) => ({
+    ...d,
+    schemaVersion: 2,
+    pages: Array.isArray(d.pages)
+      ? d.pages.map((p: any) => ({ ...p, stickies: Array.isArray(p?.stickies) ? p.stickies : [] }))
+      : d.pages,
+  }),
 }
 
 export function parseBackup(text: string): Backup {
@@ -52,6 +59,16 @@ export function parseBackup(text: string): Backup {
   for (const p of data.pages) {
     if (typeof p?.id !== 'string' || typeof p.noteId !== 'string' || typeof p.content !== 'object') {
       throw new BackupError('ページの情報が壊れています。')
+    }
+    if (!Array.isArray(p.stickies)) throw new BackupError('付箋の情報が壊れています。')
+    for (const s of p.stickies) {
+      if (
+        typeof s?.id !== 'string' ||
+        typeof s.content !== 'object' ||
+        ![s.x, s.y, s.w, s.h].every((v) => typeof v === 'number' && Number.isFinite(v))
+      ) {
+        throw new BackupError('付箋の情報が壊れています。')
+      }
     }
   }
   return data as Backup

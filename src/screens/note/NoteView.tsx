@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
-import { deleteNote, deletePage, getPages, insertPage, renameNote } from '../../db/repo'
+import { deleteNote, deletePage, getPages, insertPage, renameNote, reorderPages } from '../../db/repo'
 import { useLayoutMode } from '../../layout/useLayoutMode'
+import { useKeyboardOpen } from '../../layout/useKeyboardInset'
+import { matchShortcut, withShortcut } from '../../editor/shortcuts'
 import { href, navigate } from '../../router'
 import { Icon } from '../../components/Icon'
 import { useDialog } from '../../components/Dialog'
 import { NoteSession } from './session'
 import { PageEditor } from './PageEditor'
-import { TempToolbar } from './TempToolbar'
+import { Toolbar } from './Toolbar'
+import { PageList } from './PageList'
 
 /** 表示中のページの前後、これだけの範囲はエディタを作っておく(スワイプ先がすぐ表示されるように) */
 const MOUNT_BEHIND = 2
@@ -30,7 +33,9 @@ export function NoteView({
   onToggleSidebar?: () => void
 }) {
   const layout = useLayoutMode()
+  const keyboardOpen = useKeyboardOpen() && !layout.toolbarTop
   const dialog = useDialog()
+  const [pageListOpen, setPageListOpen] = useState(false)
   const note = useLiveQuery(() => db.notes.get(noteId), [noteId], null)
   const pages = useLiveQuery(() => getPages(noteId), [noteId])
 
@@ -138,6 +143,9 @@ export function NoteView({
         rename: async (title) => {
           await renameNote(noteId, title)
         },
+        reorderPages: async (pageIds) => {
+          await reorderPages(noteId, pageIds)
+        },
       }),
     [noteId],
   )
@@ -185,21 +193,24 @@ export function NoteView({
     scrollerRef.current?.scrollTo({ left: 0, behavior: 'instant' })
   }, [noteId])
 
-  // キーボード:← → でページ送り(編集中は除く)、編集中以外の Ctrl+Z / Ctrl+Shift+Z
+  // キーボード:← → でページ送り(編集中は除く)、エディタの外でのショートカット
+  // (エディタの中のショートカットは editor/extensions.ts で処理する)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector('.dialog-backdrop')) return
+      const shortcut = matchShortcut(e)
+      if ((shortcut === 'undo' || shortcut === 'redo') && !isEditing(e.target)) {
+        e.preventDefault()
+        void session.history[shortcut]()
+        return
+      }
+      if (shortcut === 'pageList') {
+        e.preventDefault()
+        setPageListOpen((o) => !o)
+        return
+      }
+      if (document.querySelector('.page-list')) return
       const mod = e.ctrlKey || e.metaKey
-      if (mod && e.key.toLowerCase() === 'z' && !isEditing(e.target)) {
-        e.preventDefault()
-        void (e.shiftKey ? session.history.redo() : session.history.undo())
-        return
-      }
-      if (mod && e.key.toLowerCase() === 'y' && !isEditing(e.target)) {
-        e.preventDefault()
-        void session.history.redo()
-        return
-      }
       if (isEditing(e.target) || mod || e.altKey) return
       if (e.key === 'ArrowRight' || e.key === 'PageDown') {
         e.preventDefault()
@@ -222,21 +233,15 @@ export function NoteView({
     showPage(page.id, true)
   }
 
-  /** 仮のボタン列から:操作中のページ(なければ見えているページ)の次に追加 */
-  const addPageAfterActive = () => {
-    const list = pagesRef.current ?? []
-    const activeIndex = list.findIndex((p) => p.id === session.activePageId)
-    const base = activeIndex >= 0 ? activeIndex : Math.min(currentRef.current, list.length - 1)
-    void addPage(base + 1)
-  }
-
-  const deleteActivePage = async () => {
+  /** ページを削除する(ページ一覧から) */
+  const removePage = async (pageId: string) => {
     const list = pagesRef.current ?? []
     if (list.length <= 1) {
       await dialog.alert({ message: '最後の1ページは削除できません。' })
       return
     }
-    const target = list.find((p) => p.id === session.activePageId) ?? list[Math.min(currentRef.current, list.length - 1)]
+    const target = list.find((p) => p.id === pageId)
+    if (!target) return
     const number = list.indexOf(target) + 1
     const ok = await dialog.confirm({
       title: 'ページを削除',
@@ -251,6 +256,12 @@ export function NoteView({
     if (removed) session.history.recordDeletePage(removed.page, removed.index)
     if (session.activePageId === target.id) session.activePageId = null
     session.emit()
+  }
+
+  /** ページ一覧で並び替えたとき */
+  const onReorder = async (before: string[], after: string[]) => {
+    await reorderPages(noteId, after)
+    session.history.recordPageOrder(before, after)
   }
 
   // ---- タイトル ----
@@ -312,7 +323,9 @@ export function NoteView({
         : `${current + 1} / ${pageCount}`
 
   return (
-    <div className={`note-view${layout.spread ? ' is-spread' : ' is-single'}`}>
+    <div
+      className={`note-view${layout.spread ? ' is-spread' : ' is-single'}${layout.toolbarTop ? '' : ' has-bottom-toolbar'}${keyboardOpen ? ' is-keyboard' : ''}`}
+    >
       <header className="note-header">
         {layout.sidebar !== 'fixed' && (
           <a className="icon-btn" href={href.shelf()} aria-label="本棚へ戻る" title="本棚へ戻る">
@@ -339,16 +352,20 @@ export function NoteView({
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
           }}
         />
+        <button
+          className="icon-btn"
+          onClick={() => setPageListOpen(true)}
+          aria-label="ページ一覧"
+          title={withShortcut('ページ一覧', 'pageList')}
+        >
+          <Icon name="pages" />
+        </button>
         <button className="icon-btn" onClick={() => void removeNote()} aria-label="ノートを削除" title="ノートを削除">
           <Icon name="trash" />
         </button>
       </header>
 
-      <TempToolbar
-        session={session}
-        onAddPage={addPageAfterActive}
-        onDeletePage={() => void deleteActivePage()}
-      />
+      {layout.toolbarTop && <Toolbar session={session} top />}
 
       <div className="pages-area">
         {layout.arrows && (
@@ -415,6 +432,27 @@ export function NoteView({
       <footer className="note-footer" aria-live="polite">
         {pageLabel}
       </footer>
+
+      {!layout.toolbarTop && <Toolbar session={session} top={false} />}
+
+      {pageListOpen && pages && (
+        <PageList
+          pages={pages}
+          session={session}
+          currentIndex={current}
+          onClose={() => setPageListOpen(false)}
+          onShow={(pageId) => {
+            setPageListOpen(false)
+            showPage(pageId)
+          }}
+          onDelete={(pageId) => void removePage(pageId)}
+          onAdd={() => {
+            setPageListOpen(false)
+            void addPage(pageCount)
+          }}
+          onReorder={(before, after) => void onReorder(before, after)}
+        />
+      )}
     </div>
   )
 }

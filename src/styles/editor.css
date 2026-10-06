@@ -151,3 +151,61 @@
 .page-editor .toggle-heading[data-open='false'] > .toggle-content > :not(.toggle-title) {
   display: none;
 }
+
+/* ---- 文字の装飾(フェーズ2) ---- */
+/* 文字色 */
+.page-editor [data-text-color='gray'] { color: var(--tc-gray); }
+.page-editor [data-text-color='brown'] { color: var(--tc-brown); }
+.page-editor [data-text-color='red'] { color: var(--tc-red); }
+.page-editor [data-text-color='orange'] { color: var(--tc-orange); }
+.page-editor [data-text-color='yellow'] { color: var(--tc-yellow); }
+.page-editor [data-text-color='green'] { color: var(--tc-green); }
+.page-editor [data-text-color='blue'] { color: var(--tc-blue); }
+.page-editor [data-text-color='purple'] { color: var(--tc-purple); }
+
+/* マーカー */
+.page-editor mark {
+  color: inherit;
+  background: var(--mk-yellow);
+  border-radius: 3px;
+  padding: 0.05em 0;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.page-editor mark[data-marker='orange'] { background: var(--mk-orange); }
+.page-editor mark[data-marker='pink'] { background: var(--mk-pink); }
+.page-editor mark[data-marker='red'] { background: var(--mk-red); }
+.page-editor mark[data-marker='green'] { background: var(--mk-green); }
+.page-editor mark[data-marker='blue'] { background: var(--mk-blue); }
+.page-editor mark[data-marker='purple'] { background: var(--mk-purple); }
+.page-editor mark[data-marker='gray'] { background: var(--mk-gray); }
+
+/* ライン(線の種類と色) */
+.page-editor u {
+  text-decoration-line: underline;
+  text-decoration-style: solid;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
+  text-decoration-skip-ink: none;
+}
+.page-editor u[data-line-style='wavy'] {
+  text-decoration-style: wavy;
+  text-decoration-thickness: 1.2px;
+  text-underline-offset: 0.22em;
+}
+.page-editor u[data-line-style='double'] {
+  text-decoration-style: double;
+  text-decoration-thickness: 1.5px;
+}
+.page-editor u[data-line-style='dotted'] {
+  text-decoration-style: dotted;
+  text-decoration-thickness: 2.5px;
+}
+.page-editor u[data-line-color='gray'] { text-decoration-color: var(--tc-gray); }
+.page-editor u[data-line-color='brown'] { text-decoration-color: var(--tc-brown); }
+.page-editor u[data-line-color='red'] { text-decoration-color: var(--tc-red); }
+.page-editor u[data-line-color='orange'] { text-decoration-color: var(--tc-orange); }
+.page-editor u[data-line-color='yellow'] { text-decoration-color: var(--tc-yellow); }
+.page-editor u[data-line-color='green'] { text-decoration-color: var(--tc-green); }
+.page-editor u[data-line-color='blue'] { text-decoration-color: var(--tc-blue); }
+.page-editor u[data-line-color='purple'] { text-decoration-color: var(--tc-purple); }

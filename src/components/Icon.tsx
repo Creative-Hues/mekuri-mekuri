@@ -20,6 +20,12 @@ const paths: Record<string, string> = {
   download: 'M10 3 V12.5 M6 8.5 L10 12.5 L14 8.5 M4 16.5 H16',
   upload: 'M10 13 V3.5 M6 7.5 L10 3.5 L14 7.5 M4 16.5 H16',
   close: 'M5 5 L15 15 M15 5 L5 15',
+  marker: 'M11.5 3.5 L15.5 7.5 L9.5 13.5 L5.5 13.5 L5.5 9.5 Z M9 5.9 L13.1 10 M3.5 17 H16.5',
+  pages: 'M3 3 H8.5 V8.5 H3 Z M11.5 3 H17 V8.5 H11.5 Z M3 11.5 H8.5 V17 H3 Z M11.5 11.5 H17 V17 H11.5 Z',
+  grip: 'M5 6.5 H15 M5 10 H15 M5 13.5 H15',
+  keyboardHide:
+    'M2.5 3.5 H17.5 V12.5 H2.5 Z M5.5 6.5 H6 M8.5 6.5 H9 M11.5 6.5 H12 M14.5 6.5 H14 M6.5 9.5 H13.5 M7 15.5 L10 18 L13 15.5',
+  none: 'M10 3 A7 7 0 1 0 10 17 A7 7 0 1 0 10 3 Z M5 15 L15 5',
 }
 
 export type IconName = keyof typeof paths

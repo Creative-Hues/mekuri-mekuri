@@ -15,6 +15,24 @@
   --radius: 12px;
   --font: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP',
     'Yu Gothic UI', Meiryo, sans-serif;
+  /* 文字色(palette.ts の色名と対応。ダークモードではここを差し替える) */
+  --tc-gray: #787774;
+  --tc-brown: #9f6b53;
+  --tc-red: #d44c47;
+  --tc-orange: #d9730d;
+  --tc-yellow: #c29022;
+  --tc-green: #448361;
+  --tc-blue: #337ea9;
+  --tc-purple: #9065b0;
+  /* マーカー(文字の背景) */
+  --mk-yellow: #fbeca0;
+  --mk-orange: #fbd9b8;
+  --mk-pink: #f9d4e4;
+  --mk-red: #f8cfcb;
+  --mk-green: #d3ead5;
+  --mk-blue: #d3e5f5;
+  --mk-purple: #e4d9f2;
+  --mk-gray: #e6e4df;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
@@ -110,9 +128,14 @@ button {
 }
 
 /* ---- アプリ全体の枠 ---- */
+/* 高さと位置は「実際に見えている範囲」に合わせる(スマホでキーボードが出たとき用。useKeyboardInset.ts) */
 .app {
-  height: 100%;
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--app-top, 0px);
   height: 100dvh;
+  height: var(--app-height, 100dvh);
   display: flex;
 }
 .app-main {

@@ -5,6 +5,7 @@ const SPREAD_QUERY = '(min-width: 600px)' // これ以上の幅なら見開き
 const SIDEBAR_FIXED_QUERY = '(min-width: 1024px) and (hover: hover) and (pointer: fine)' // PC:一覧を常に表示
 const SIDEBAR_TOGGLE_QUERY = '(min-width: 768px) and (min-height: 600px)' // タブレット:開閉できる一覧
 const ARROWS_QUERY = '(min-width: 768px), (hover: hover) and (pointer: fine)' // 矢印ボタンを出す
+const MOUSE_QUERY = '(hover: hover) and (pointer: fine)' // マウスで操作する端末(PC)
 
 export type SidebarMode = 'fixed' | 'toggle' | 'none'
 
@@ -14,20 +15,23 @@ export interface LayoutMode {
   sidebar: SidebarMode
   /** ページ送りの矢印ボタンを出すか */
   arrows: boolean
+  /** 書式ツールバーを上に出すか(PC)。false ならスマホ・タブレット向けに下(キーボードのすぐ上)に出す */
+  toolbarTop: boolean
 }
 
-const queries = [SPREAD_QUERY, SIDEBAR_FIXED_QUERY, SIDEBAR_TOGGLE_QUERY, ARROWS_QUERY].map((q) =>
+const queries = [SPREAD_QUERY, SIDEBAR_FIXED_QUERY, SIDEBAR_TOGGLE_QUERY, ARROWS_QUERY, MOUSE_QUERY].map((q) =>
   window.matchMedia(q),
 )
 
 let snapshot = compute()
 
 function compute(): LayoutMode {
-  const [spread, fixed, toggle, arrows] = queries.map((m) => m.matches)
+  const [spread, fixed, toggle, arrows, mouse] = queries.map((m) => m.matches)
   return {
     spread,
     sidebar: fixed ? 'fixed' : toggle ? 'toggle' : 'none',
     arrows,
+    toolbarTop: mouse,
   }
 }
 
@@ -39,7 +43,8 @@ queries.forEach((m) =>
     if (
       next.spread !== snapshot.spread ||
       next.sidebar !== snapshot.sidebar ||
-      next.arrows !== snapshot.arrows
+      next.arrows !== snapshot.arrows ||
+      next.toolbarTop !== snapshot.toolbarTop
     ) {
       snapshot = next
       listeners.forEach((fn) => fn())

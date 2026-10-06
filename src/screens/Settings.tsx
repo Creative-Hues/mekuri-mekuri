@@ -10,6 +10,7 @@ import { href } from '../router'
 import { APP_VERSION } from '../version'
 import { Icon } from '../components/Icon'
 import { useDialog } from '../components/Dialog'
+import { SHORTCUTS, shortcutText } from '../editor/shortcuts'
 
 function formatDate(ms: number): string {
   const d = new Date(ms)
@@ -136,6 +137,23 @@ export function Settings() {
             ブラウザが「消されにくい保存」を許可していません。ホーム画面に追加して使うと有効になりやすくなります。
           </p>
         )}
+      </section>
+
+      <section className="settings-section">
+        <h2>ショートカットキー(PC)</h2>
+        <p className="settings-note">キーボードをつないだ端末で使えます。日本語キーボードでも同じキーで使えます。</p>
+        <dl className="shortcut-list">
+          {SHORTCUTS.map((s) => (
+            <div key={s.id} className="settings-row">
+              <dt>{s.label}</dt>
+              <dd>
+                {s.combos.map((_, i) => (
+                  <kbd key={i}>{shortcutText(s.id, i)}</kbd>
+                ))}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </section>
 
       <section className="settings-section">
