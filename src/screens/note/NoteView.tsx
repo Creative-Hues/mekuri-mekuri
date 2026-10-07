@@ -554,7 +554,7 @@ export function NoteView({
 
   // ---- 書き出し(PDF・Word・Markdown・テキスト) ----
 
-  const [printJob, setPrintJob] = useState<{ source: ExportSource; job: number } | null>(null)
+  const [printJob, setPrintJob] = useState<{ source: ExportSource; job: number; pageNumbers: boolean } | null>(null)
 
   /** 書き出す前に、保存待ちの変更を保存してから読む */
   const loadForExport = async () => {
@@ -562,10 +562,11 @@ export function NoteView({
     return loadExportSource(noteId)
   }
 
-  const printNote = async () => {
+  /** pageNumbers:PDF にページ番号(「1 / 6」)を入れるか(ショートカットの印刷では入れる) */
+  const printNote = async (pageNumbers = true) => {
     try {
       const source = await loadForExport()
-      if (source) setPrintJob((prev) => ({ source, job: (prev?.job ?? 0) + 1 }))
+      if (source) setPrintJob((prev) => ({ source, job: (prev?.job ?? 0) + 1, pageNumbers }))
     } catch (e) {
       console.error(e)
       await dialog.alert({ message: '印刷の準備に失敗しました。' })
@@ -576,6 +577,8 @@ export function NoteView({
 
   const exportNote = async () => {
     setMenuOpen(false)
+    // PDF のページ番号を入れるか(初めはオン。ダイアログの中のチェックで変える)
+    let pageNumbers = true
     const format = await dialog.choose<'pdf' | FileFormat | null>({
       title: 'ノートを書き出す',
       message: (
@@ -587,6 +590,20 @@ export function NoteView({
             <li>Markdown:ほかのノートアプリへ移す用(色は消え、画像は「[画像]」になります)</li>
             <li>テキスト:文字だけ</li>
           </ul>
+          <label className="export-option">
+            <input
+              type="checkbox"
+              defaultChecked
+              onChange={(e) => {
+                pageNumbers = e.target.checked
+              }}
+            />
+            PDF にページ番号を入れる(紙の下の中央に「1 / 6」の形で)
+          </label>
+          {/* 紙の分け方は A4・倍率100% で決めているので、印刷画面の設定を案内する */}
+          <p className="export-note">
+            PDF は A4・倍率100%で印刷してください。印刷画面の「ヘッダーとフッター」はオフにしてください。
+          </p>
         </>
       ),
       cancelValue: null,
@@ -600,7 +617,7 @@ export function NoteView({
     })
     if (!format) return
     if (format === 'pdf') {
-      await printNote()
+      await printNote(pageNumbers)
       return
     }
     try {
@@ -900,7 +917,7 @@ export function NoteView({
         />
       )}
 
-      {printJob && <PrintView source={printJob.source} job={printJob.job} />}
+      {printJob && <PrintView source={printJob.source} job={printJob.job} pageNumbers={printJob.pageNumbers} />}
     </div>
   )
 }

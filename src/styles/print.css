@@ -1,11 +1,85 @@
 /*
  * PDF の出力(印刷)用の見た目(src/export/PrintView.tsx)。
- * 画面では隠しておき、印刷のときだけアプリの画面の代わりに表示する
+ * 画面では隠しておき、印刷のときだけアプリの画面の代わりに表示する。
+ * 紙は PrintView が1枚ずつ作る(.print-sheet)。紙の大きさは A4 から上下左右の余白(12mm)を引いたもの
+ * (高さは少し小さくして、空の紙が増えないようにする)
  */
 .print-root {
   display: none;
   /* PDF には文字サイズの設定を反映しない(いつも標準の大きさ) */
   --text-zoom: 1;
+}
+
+/* 紙の分け方を決めるため、画面の外(見えない所)に、印刷と同じ幅で並べて測る */
+.print-root.is-measuring {
+  display: block;
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 186mm;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* 紙1枚 */
+.print-sheet {
+  position: relative;
+  box-sizing: border-box;
+  height: 268mm;
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius);
+  /* 紙の色・付箋の色・マーカーも印刷する(ブラウザは普通、背景色を印刷しないため) */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+/* 測るときは、中身の高さに合わせる */
+.print-sheet--measure {
+  height: auto;
+}
+/* 紙の中の、中身を見せる範囲(PrintView が位置と高さを決める) */
+.print-window {
+  position: absolute;
+  left: 0;
+  right: 0;
+  overflow: hidden;
+}
+.print-sheet--measure .print-window {
+  position: static;
+}
+/* ページ番号(紙の縁の内側の下中央) */
+.print-number {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  text-align: center;
+  font-family: var(--font);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--ink-soft);
+}
+
+.print-root .sticky,
+.print-root .sticky * {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.print-root .page-editor {
+  /* 画面では左に行のハンドルの分をとっているが、印刷ではいらない */
+  padding: 16px 20px;
+}
+.print-root .sticky {
+  box-shadow: none;
+}
+/* 印刷では使わないボタン(表の「＋」・トグルの開閉) */
+.print-root .table-add {
+  display: none !important;
+}
+.print-root .toggle-btn {
+  visibility: hidden;
 }
 
 @media print {
@@ -30,46 +104,12 @@
   .print-root {
     display: block;
   }
-  .print-page {
+  /* 紙1枚ごとに、印刷の1枚にする */
+  .print-sheet {
     break-after: page;
-  }
-  .print-page:last-child {
-    break-after: auto;
-  }
-  .print-paper {
-    /* 紙の色・付箋の色・マーカーも印刷する(ブラウザは普通、背景色を印刷しないため) */
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    /* A4 の高さから上下の余白を引いた高さ(少し小さくして、空のページが増えないようにする) */
-    min-height: calc(297mm - 24mm - 4mm);
-    background: var(--paper);
-    color: var(--ink);
-    border: 1px solid var(--paper-edge);
-    border-radius: var(--radius);
-  }
-  .print-root .sticky,
-  .print-root .sticky * {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  .print-root .page-editor {
-    /* 画面では左に行のハンドルの分をとっているが、印刷ではいらない */
-    padding: 16px 20px;
-  }
-  .print-root .sticky {
-    box-shadow: none;
-  }
-  /* 印刷では使わないボタン(表の「＋」・トグルの開閉) */
-  .print-root .table-add {
-    display: none !important;
-  }
-  .print-root .toggle-btn {
-    visibility: hidden;
-  }
-  /* 画像・表・付箋の途中でページが切れないように */
-  .print-root .image-block,
-  .print-root .note-link,
-  .print-root tr {
     break-inside: avoid;
+  }
+  .print-sheet:last-child {
+    break-after: auto;
   }
 }

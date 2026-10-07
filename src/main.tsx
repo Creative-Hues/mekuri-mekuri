@@ -6,6 +6,7 @@ import { purgeExpired } from './db/repo'
 import { cleanupImages } from './images/store'
 import { initTheme } from './theme/theme'
 import { initTextSize } from './theme/textSize'
+import { initLineStyles } from './editor/lineStyles'
 import './styles/base.css'
 import './styles/editor.css'
 import './styles/note.css'
@@ -21,6 +22,9 @@ initTheme()
 
 // 文字サイズ(ノートの中身の文字の大きさ。端末ごとの設定)
 initTextSize()
+
+// ライン(波線・点線・二重線)を SVG で描く CSS を入れる(PDF でもくっきり出るように)
+initLineStyles()
 
 // データを消されにくくするようブラウザに頼む
 void requestPersist()

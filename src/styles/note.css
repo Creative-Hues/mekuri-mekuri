@@ -1092,3 +1092,27 @@
 .design-tile-pattern[data-color='black'] {
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.22), 0 1px 3px rgb(0 0 0 / 0.18);
 }
+
+/* 書き出しのダイアログの、PDF のページ番号のチェック */
+.export-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.export-option input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--accent-ink);
+}
+/* 書き出しのダイアログの、PDF の印刷設定の案内(小さく) */
+.dialog-message .export-note {
+  margin: 6px 0 0 26px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}

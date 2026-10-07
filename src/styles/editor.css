@@ -199,32 +199,48 @@
 .page-editor mark[data-marker='purple'] { background: var(--mk-purple); }
 .page-editor mark[data-marker='gray'] { background: var(--mk-gray); }
 
-/* ライン(線の種類と色) */
-.page-editor u {
+/*
+ * ライン(線の種類と色)。本文と付箋で同じ。
+ * 波線・点線・二重線は、起動時に editor/lineStyles.ts が SVG で描く CSS を入れる(PDF でもくっきり出るように)。
+ * ここの text-decoration は、それが使えないときの予備と実線
+ */
+.page-editor u,
+.sticky-editor u {
   text-decoration-line: underline;
   text-decoration-style: solid;
   text-decoration-thickness: 1.5px;
   text-underline-offset: 0.2em;
   text-decoration-skip-ink: none;
 }
-.page-editor u[data-line-style='wavy'] {
+.page-editor u[data-line-style='wavy'],
+.sticky-editor u[data-line-style='wavy'] {
   text-decoration-style: wavy;
   text-decoration-thickness: 1.2px;
   text-underline-offset: 0.22em;
 }
-.page-editor u[data-line-style='double'] {
+.page-editor u[data-line-style='double'],
+.sticky-editor u[data-line-style='double'] {
   text-decoration-style: double;
   text-decoration-thickness: 1.5px;
 }
-.page-editor u[data-line-style='dotted'] {
+.page-editor u[data-line-style='dotted'],
+.sticky-editor u[data-line-style='dotted'] {
   text-decoration-style: dotted;
   text-decoration-thickness: 2.5px;
 }
-.page-editor u[data-line-color='gray'] { text-decoration-color: var(--tc-gray); }
-.page-editor u[data-line-color='brown'] { text-decoration-color: var(--tc-brown); }
-.page-editor u[data-line-color='red'] { text-decoration-color: var(--tc-red); }
-.page-editor u[data-line-color='orange'] { text-decoration-color: var(--tc-orange); }
-.page-editor u[data-line-color='yellow'] { text-decoration-color: var(--tc-yellow); }
-.page-editor u[data-line-color='green'] { text-decoration-color: var(--tc-green); }
-.page-editor u[data-line-color='blue'] { text-decoration-color: var(--tc-blue); }
-.page-editor u[data-line-color='purple'] { text-decoration-color: var(--tc-purple); }
+.page-editor u[data-line-color='gray'],
+.sticky-editor u[data-line-color='gray'] { text-decoration-color: var(--tc-gray); }
+.page-editor u[data-line-color='brown'],
+.sticky-editor u[data-line-color='brown'] { text-decoration-color: var(--tc-brown); }
+.page-editor u[data-line-color='red'],
+.sticky-editor u[data-line-color='red'] { text-decoration-color: var(--tc-red); }
+.page-editor u[data-line-color='orange'],
+.sticky-editor u[data-line-color='orange'] { text-decoration-color: var(--tc-orange); }
+.page-editor u[data-line-color='yellow'],
+.sticky-editor u[data-line-color='yellow'] { text-decoration-color: var(--tc-yellow); }
+.page-editor u[data-line-color='green'],
+.sticky-editor u[data-line-color='green'] { text-decoration-color: var(--tc-green); }
+.page-editor u[data-line-color='blue'],
+.sticky-editor u[data-line-color='blue'] { text-decoration-color: var(--tc-blue); }
+.page-editor u[data-line-color='purple'],
+.sticky-editor u[data-line-color='purple'] { text-decoration-color: var(--tc-purple); }
