@@ -3,7 +3,7 @@ import { db } from '../src/db/db'
 import { getPages } from '../src/db/repo'
 import { fromBase64, parseBackup, toBase64 } from '../src/backup/format'
 import { importAppend, importReplace } from '../src/backup/import'
-import { legacyDesign } from '../src/design/defaults'
+import { legacyDesign, legacyDesignV3 } from '../src/design/defaults'
 import { remapContentIds } from '../src/editor/contentWalk'
 
 // v4 のバックアップ(画像入り)と、「追加」で読み込むときの参照の書き換え
@@ -52,13 +52,13 @@ describe('base64 の変換', () => {
 })
 
 describe('v4 のバックアップ', () => {
-  it('v3 のファイルは画像なしの v4 になる', () => {
+  it('v3 のファイルは画像なしの最新の形(v5)になる', () => {
     const file = JSON.stringify({
       app: 'mekuri-mekuri', schemaVersion: 3, appVersion: '0.4.0', exportedAt: 1,
       notes: [note('n1', 'a')], pages: [page('p1', 'n1', { type: 'doc', content: [] })],
     })
     const backup = parseBackup(file)
-    expect(backup.schemaVersion).toBe(4)
+    expect(backup.schemaVersion).toBe(5)
     expect(backup.images).toEqual([])
   })
 
@@ -96,6 +96,47 @@ describe('v4 のバックアップ', () => {
     expect(link.pageId).toBe(pb.id)
     // ファイルの外のノートへのリンクはそのまま
     expect(pa.content.content![2].attrs!.noteId).toBe('よそのノート')
+  })
+})
+
+describe('v5 のバックアップ(本文の書体・サブ色・柄の大きさ。アプリ 1.1.0〜)', () => {
+  /** 1.0.0 で書き出したファイル(デザインは v4 の形) */
+  const v4DesignFile = () =>
+    JSON.stringify({
+      app: 'mekuri-mekuri', schemaVersion: 4, appVersion: '1.0.0', exportedAt: 1,
+      notes: [
+        { ...note('n1', '青海波'), design: { ...legacyDesignV3(), cover: { ...legacyDesignV3().cover, pattern: 'seigaiha', font: 'mincho' } } },
+        { ...note('n2', 'ドット'), design: { ...legacyDesignV3(), paper: 'mint', cover: { ...legacyDesignV3().cover, pattern: 'dots' } } },
+      ],
+      pages: [page('p1', 'n1', { type: 'doc', content: [] })],
+      images: [],
+    })
+
+  it('v4 のファイルは v5 に変換される:なくした柄は無地、本文は表紙と同じ、なじむ色・中', () => {
+    const backup = parseBackup(v4DesignFile())
+    expect(backup.schemaVersion).toBe(5)
+    const [a, b] = backup.notes
+    expect(a.design.cover).toEqual({
+      pattern: 'plain', color: 'slate', layout: 'topLeft', font: 'mincho', subColor: 'auto', patternScale: 'medium',
+    })
+    expect(a.design.bodyFont).toBe('cover')
+    expect(b.design.cover.pattern).toBe('dots')
+    expect(b.design.paper).toBe('mint')
+  })
+
+  it('v5 のファイルは、選んだサブ色・柄の大きさ・本文の書体のまま読める', () => {
+    const design = { ...legacyDesign(), bodyFont: 'maru', cover: { ...legacyDesign().cover, pattern: 'dots', subColor: 'white', patternScale: 'large' } }
+    const file = JSON.stringify({
+      app: 'mekuri-mekuri', schemaVersion: 5, appVersion: '1.1.0', exportedAt: 1,
+      notes: [{ ...note('n1', 'a'), design }], pages: [], images: [],
+    })
+    expect(parseBackup(file).notes[0].design).toEqual(design)
+  })
+
+  it('置き換えて読み込むと、DB にも v5 の形で入る', async () => {
+    await importReplace(parseBackup(v4DesignFile()))
+    const n1 = await db.notes.get('n1')
+    expect(n1!.design).toMatchObject({ bodyFont: 'cover', cover: { pattern: 'plain', subColor: 'auto', patternScale: 'medium' } })
   })
 })
 

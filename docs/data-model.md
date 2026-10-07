@@ -2,7 +2,7 @@
 
 ノートのデータはすべて端末内の IndexedDB に保存する。外部サーバーには送らない。
 
-- 現在のスキーマバージョン:**4**(`src/db/db.ts` の `SCHEMA_VERSION`)
+- 現在のスキーマバージョン:**5**(`src/db/db.ts` の `SCHEMA_VERSION`)
 - DB名:`mekuri-mekuri`(Dexie で管理)
 
 ## テーブル
@@ -54,22 +54,30 @@
 
 ※ 付箋の画面はアプリ 0.3.0 から。0.2.0 ではデータの入れ物だけ用意していた(0.3.0 でデータの形は変わっていない)
 
-### ノートのデザイン(design、v3〜)
+### ノートのデザイン(design、v3〜。v5 で項目を追加)
 
-すべて**名前**で保存する。実際の色・柄は `src/design/palette.ts`・`src/design/cover.ts` で決める。**名前は追加だけにして、変更・削除はしない。** 知らない名前は表示のときに既定値になる(`normalizeDesign`)。
+すべて**名前**で保存する。実際の色・柄は `src/design/palette.ts`・`src/design/cover.ts` で決める。**名前は追加だけにして、変更・削除はしない。** やむを得ず消すときは、必ずデータの移し替え(DB とバックアップファイルの両方)を入れる(v5 で柄を3つ消したときの例を参照)。知らない名前は表示のときに既定値になる(`normalizeDesign`)。
 
 | 項目 | 値 |
 | --- | --- |
 | paper | 紙の背景色。`null`(指定なし=アプリのテーマに合わせる)または `white` `ivory` `cream` `pink` `peach` `lemon` `mint` `sky` `lavender` `gray` `navy` `blackboard` `charcoal` |
 | border.width | 縁の太さ:`none` `thin` `medium` `thick` |
 | border.color | 縁の色:`brown` `beige` `gold` `red` `pink` `orange` `green` `teal` `blue` `navy` `purple` `gray` `black` |
-| cover.color | 表紙の色:`slate` `navy` `forest` `wine` `terracotta` `mustard` `sakura` `mint` `sky` `lavender` `cream` `charcoal` |
-| cover.pattern | 柄:`plain` `stripe` `border` `dots` `check` `gingham` `grid` `diagonal` `wave` `ichimatsu` `seigaiha` `uroko` |
+| cover.color | 表紙のベース色:`slate` `navy` `forest` `wine` `terracotta` `mustard` `sakura` `mint` `sky` `lavender` `cream` `charcoal` |
+| cover.pattern | 柄:`plain` `stripe` `wideStripe`(v5〜) `border` `dots` `check` `gingham` `grid` `diagonal` `wave`。`ichimatsu` `seigaiha` `uroko` は v5 で削除(無地に移す) |
+| cover.subColor | 柄の色(サブ色、v5〜):`auto`(なじむ色。ベース色に合わせた半透明の白/黒。1.0.0 までの柄の色)、または表紙の色の名前、`white` `black` |
+| cover.patternScale | 柄の大きさ(v5〜):`small`(0.6倍) `medium`(1.0.0 までと同じ) `large`(1.6倍) |
 | cover.layout | 文字の配置:`topLeft` `center` `bottomLeft` `bottomRight` `band` `label` `vertical` `bottomBand` `frame` `spine` |
-| cover.font | 書体:`gothicBold` `gothic` `gothicLight` `gothicWide` `minchoBold` `mincho` `minchoWide` `maru` `maruLight` `classic` |
+| cover.font | 書体:`gothicBold` `gothic` `gothicLight` `gothicWide` `minchoBold` `mincho` `minchoWide` `maru` `maruLight` `classic`。それぞれ種類(ゴシック・明朝・丸ゴシック)を持ち、`classic` は明朝 |
+| bodyFont | 本文の書体(v5〜):`cover`(表紙の書体と同じ種類) `gothic` `mincho` `maru`。太さ・字間は本文には使わない。本文と付箋・PDF に使う |
 
-- 既存のノート(v2 まで)は、今までと同じ見た目の `{ paper: null, border: { color: 'brown', width: 'none' }, cover: { pattern: 'plain', color: 'slate', layout: 'topLeft', font: 'gothicBold' } }` にする
-- 新しいノートは表紙の色だけランダム
+- 既存のノート(v2 まで)は、v3 で今までと同じ見た目の `{ paper: null, border: { color: 'brown', width: 'none' }, cover: { pattern: 'plain', color: 'slate', layout: 'topLeft', font: 'gothicBold' } }`(`legacyDesignV3`)にし、v5 で下の移し替えを通す
+- v4 までのノートの v5 への移し替え(`upgradeDesignToV5`。DB とバックアップファイルで同じ関数):
+  - `bodyFont` → `cover`(表紙と同じ。表紙が明朝・丸ゴシックのノートは本文の書体が変わる。ユーザーと決めた方針)
+  - `cover.subColor` → `auto`(なじむ色。柄の見た目は変わらない)、`cover.patternScale` → `medium`
+  - `cover.pattern` が `ichimatsu` `seigaiha` `uroko` → `plain`(無地)
+  - すでに項目があれば変えない(何度通しても同じ結果)。更新日時は変えない
+- 新しいノートは表紙のベース色だけランダム。柄は無地、サブ色は なじむ色、柄の大きさは 中、本文は表紙と同じ
 
 ### images(画像、v4〜)
 
@@ -146,8 +154,8 @@ TipTap の JSON(`{ type: 'doc', content: [...] }`)。v1 で使うもの:
 ```json
 {
   "app": "mekuri-mekuri",
-  "schemaVersion": 4,
-  "appVersion": "0.5.0",
+  "schemaVersion": 5,
+  "appVersion": "1.1.0",
   "exportedAt": 1759740000000,
   "notes": [ /* notes の行そのまま */ ],
   "pages": [ /* pages の行そのまま */ ],
@@ -178,3 +186,4 @@ TipTap の JSON(`{ type: 'doc', content: [...] }`)。v1 で使うもの:
 - v3(アプリ 0.4.0〜):ノートに `favorite`・`deletedAt`・`design`、ページに `deletedAt`・`deletedIndex` を追加(ゴミ箱・お気に入り・デザイン)。既存のノートは「お気に入りでない・ゴミ箱でない・今までと同じ見た目」に、v2 以前のバックアップファイルも同じく変換する。インデックスは変わらない
 - v4(アプリ 0.5.0〜):`images`(画像)のテーブルを追加し、画像の参照の片付けのために `unusedSince` を持たせた。本文に `table` / `tableRow` / `tableCell` / `tableHeader`・`image`・`noteLink` のノードと `link` の mark を追加。既存のノート・ページは変わらない(移し替えは不要)。v3 以前のバックアップファイルは `images: []` を補って読む
 - (アプリ 1.0.0:meta に `onboardingDoneAt` を追加。スキーマ番号は 4 のまま、移し替えは不要)
+- v5(アプリ 1.1.0〜):ノートの `design` に `bodyFont`(本文の書体)、`design.cover` に `subColor`(サブ色)・`patternScale`(柄の大きさ)を追加。柄 `ichimatsu` `seigaiha` `uroko` を削除し `wideStripe` を追加。既存のノート・v4 以前のバックアップファイルは「本文は表紙と同じ・なじむ色・中・削除した柄は無地」に移す。インデックスは変わらない

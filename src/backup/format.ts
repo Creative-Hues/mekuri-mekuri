@@ -1,5 +1,5 @@
 import { SCHEMA_VERSION, type Note, type Page } from '../db/db'
-import { legacyDesign } from '../design/defaults'
+import { legacyDesignV3, upgradeDesignToV5 } from '../design/defaults'
 
 /** バックアップファイルの中の画像(v4〜)。data は base64 */
 export interface BackupImage {
@@ -10,10 +10,10 @@ export interface BackupImage {
   height: number
 }
 
-/** バックアップファイルの中身(スキーマ v4) */
-export interface BackupV4 {
+/** バックアップファイルの中身(スキーマ v5。v4 からはデザインの項目が増えただけで、ファイルの形は同じ) */
+export interface BackupV5 {
   app: 'mekuri-mekuri'
-  schemaVersion: 4
+  schemaVersion: 5
   appVersion: string
   exportedAt: number
   notes: Note[]
@@ -22,7 +22,7 @@ export interface BackupV4 {
 }
 
 /** 今のアプリが扱う形 */
-export type Backup = BackupV4
+export type Backup = BackupV5
 
 export class BackupError extends Error {}
 
@@ -44,7 +44,7 @@ const migrations: Record<number, (data: any) => any> = {
     ...d,
     schemaVersion: 3,
     notes: Array.isArray(d.notes)
-      ? d.notes.map((n: any) => ({ ...n, favorite: false, deletedAt: null, design: legacyDesign() }))
+      ? d.notes.map((n: any) => ({ ...n, favorite: false, deletedAt: null, design: legacyDesignV3() }))
       : d.notes,
     pages: Array.isArray(d.pages)
       ? d.pages.map((p: any) => ({ ...p, deletedAt: null, deletedIndex: null }))
@@ -52,6 +52,17 @@ const migrations: Record<number, (data: any) => any> = {
   }),
   // v3 → v4:画像を追加(v3 までのファイルには画像はない)
   3: (d) => ({ ...d, schemaVersion: 4, images: Array.isArray(d.images) ? d.images : [] }),
+  // v4 → v5:デザインに 本文の書体・サブ色・柄の大きさ を追加、市松・青海波・鱗は無地に(DB の移し替えと同じ)
+  4: (d) => ({
+    ...d,
+    schemaVersion: 5,
+    notes: Array.isArray(d.notes)
+      ? d.notes.map((n: any) =>
+          // デザインが壊れているノートは、下の確認で「壊れている」と知らせるためにそのまま残す
+          n && n.design && typeof n.design === 'object' ? { ...n, design: upgradeDesignToV5(n.design) } : n,
+        )
+      : d.notes,
+  }),
 }
 
 const isTime = (v: unknown) => v === null || (typeof v === 'number' && Number.isFinite(v))

@@ -45,7 +45,7 @@ describe('データ移行 v2 → 最新', () => {
     expect(pages[0].stickies).toEqual([sticky])
     expect(pages[0].content).toEqual(content)
     expect(pages.every((p) => p.deletedAt === null && p.deletedIndex === null)).toBe(true)
-    expect(db.verno).toBe(4)
+    expect(db.verno).toBe(5)
     db.close()
   })
 })

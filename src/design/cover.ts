@@ -1,16 +1,22 @@
 /**
- * 表紙のテンプレート(柄・文字の配置・書体)。色は palette.ts の COVER_COLORS。
+ * 表紙のテンプレート(柄・柄の大きさ・文字の配置・書体)と、本文の書体。色は palette.ts。
  * 柄は画像ファイルを使わず、CSSのグラデーションとSVGで描く(端末で見た目が変わらないように)。
+ * 柄は「ベース色(表紙の色)」の上に「サブ色」で描く。
  * データには名前だけを保存する。名前を変える・消すと保存済みの表紙が出なくなるので、追加だけにすること
+ * (消すときは、必ずデータの移し替えを入れる)
  */
 
-import type { Tone } from './palette'
+import type { NoteDesign } from '../db/db'
+import { subColor, type Tone } from './palette'
 
 export interface CoverPattern {
   name: string
   label: string
-  /** ink:柄を描く色(表紙の色が明るいか暗いかで変える) */
-  css: (ink: string) => { backgroundImage?: string; backgroundSize?: string; backgroundPosition?: string }
+  /**
+   * ink:柄を描く色(サブ色)
+   * s:柄の倍率(PATTERN_SCALES の scale。1 が標準の大きさ)
+   */
+  css: (ink: string, s: number) => { backgroundImage?: string; backgroundSize?: string; backgroundPosition?: string }
 }
 
 /** SVG を背景に使う(色の # は URL の中で使えないので変換する) */
@@ -19,102 +25,72 @@ const svg = (body: string, w: number, h: number) =>
     `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'>${body}</svg>`,
   )}")`
 
+/** 倍率を掛けた長さ(px)。小数は2桁までにする */
+const px = (n: number, s: number) => `${Math.round(n * s * 100) / 100}px`
+
+/** 縦の縞(太さ w・繰り返しの幅 period) */
+const stripes = (deg: number, ink: string, w: number, period: number, s: number) =>
+  `repeating-linear-gradient(${deg}deg, ${ink} 0 ${px(w, s)}, transparent ${px(w, s)} ${px(period, s)})`
+
+// アプリ 1.1.0 で 市松(ichimatsu)・青海波(seigaiha)・鱗(uroko)をなくした。
+// 保存済みのノートは、データの移し替え(defaults.ts の upgradeDesignToV5)で無地になる
 export const COVER_PATTERNS: readonly CoverPattern[] = [
   { name: 'plain', label: '無地', css: () => ({}) },
-  {
-    name: 'stripe',
-    label: 'ストライプ',
-    css: (ink) => ({ backgroundImage: `repeating-linear-gradient(90deg, ${ink} 0 6px, transparent 6px 18px)` }),
-  },
-  {
-    name: 'border',
-    label: 'ボーダー',
-    css: (ink) => ({ backgroundImage: `repeating-linear-gradient(0deg, ${ink} 0 6px, transparent 6px 18px)` }),
-  },
+  { name: 'stripe', label: 'ストライプ', css: (ink, s) => ({ backgroundImage: stripes(90, ink, 6, 18, s) }) },
+  { name: 'wideStripe', label: '太ストライプ', css: (ink, s) => ({ backgroundImage: stripes(90, ink, 16, 32, s) }) },
+  { name: 'border', label: 'ボーダー', css: (ink, s) => ({ backgroundImage: stripes(0, ink, 6, 18, s) }) },
   {
     name: 'dots',
     label: 'ドット',
-    css: (ink) => ({
-      backgroundImage: `radial-gradient(${ink} 2.2px, transparent 2.7px)`,
-      backgroundSize: '14px 14px',
+    css: (ink, s) => ({
+      backgroundImage: `radial-gradient(${ink} ${px(2.2, s)}, transparent ${px(2.7, s)})`,
+      backgroundSize: `${px(14, s)} ${px(14, s)}`,
     }),
   },
   {
     name: 'check',
     label: 'チェック',
-    css: (ink) => ({
-      backgroundImage: `linear-gradient(${ink} 2px, transparent 2px), linear-gradient(90deg, ${ink} 2px, transparent 2px)`,
-      backgroundSize: '24px 24px',
+    css: (ink, s) => ({
+      backgroundImage: `linear-gradient(${ink} ${px(2, s)}, transparent ${px(2, s)}), linear-gradient(90deg, ${ink} ${px(2, s)}, transparent ${px(2, s)})`,
+      backgroundSize: `${px(24, s)} ${px(24, s)}`,
     }),
   },
   {
     name: 'gingham',
     label: 'ギンガム',
-    css: (ink) => ({
-      backgroundImage: `repeating-linear-gradient(0deg, ${ink} 0 8px, transparent 8px 16px), repeating-linear-gradient(90deg, ${ink} 0 8px, transparent 8px 16px)`,
-    }),
+    css: (ink, s) => ({ backgroundImage: `${stripes(0, ink, 8, 16, s)}, ${stripes(90, ink, 8, 16, s)}` }),
   },
   {
     name: 'grid',
     label: '方眼',
-    css: (ink) => ({
+    css: (ink, s) => ({
       backgroundImage: `linear-gradient(${ink} 1px, transparent 1px), linear-gradient(90deg, ${ink} 1px, transparent 1px)`,
-      backgroundSize: '9px 9px',
+      backgroundSize: `${px(9, s)} ${px(9, s)}`,
     }),
   },
-  {
-    name: 'diagonal',
-    label: '斜線',
-    css: (ink) => ({ backgroundImage: `repeating-linear-gradient(45deg, ${ink} 0 3px, transparent 3px 12px)` }),
-  },
+  { name: 'diagonal', label: '斜線', css: (ink, s) => ({ backgroundImage: stripes(45, ink, 3, 12, s) }) },
   {
     name: 'wave',
     label: '波',
-    css: (ink) => ({
+    css: (ink, s) => ({
       backgroundImage: svg(
         `<path d='M0 6 Q6 0 12 6 T24 6' fill='none' stroke='${ink}' stroke-width='2'/>`,
         24,
         12,
       ),
-      backgroundSize: '24px 12px',
-    }),
-  },
-  {
-    name: 'ichimatsu',
-    label: '市松',
-    css: (ink) => ({
-      backgroundImage: `conic-gradient(${ink} 25%, transparent 0 50%, ${ink} 0 75%, transparent 0)`,
-      backgroundSize: '24px 24px',
-    }),
-  },
-  {
-    name: 'seigaiha',
-    label: '青海波',
-    css: (ink) => ({
-      backgroundImage: svg(
-        [16, 11, 6]
-          .map(
-            (r) =>
-              `<circle cx='16' cy='16' r='${r}' fill='none' stroke='${ink}' stroke-width='1.6'/>` +
-              `<circle cx='0' cy='0' r='${r}' fill='none' stroke='${ink}' stroke-width='1.6'/>` +
-              `<circle cx='32' cy='0' r='${r}' fill='none' stroke='${ink}' stroke-width='1.6'/>`,
-          )
-          .join(''),
-        32,
-        16,
-      ),
-      backgroundSize: '32px 16px',
-    }),
-  },
-  {
-    name: 'uroko',
-    label: '鱗',
-    css: (ink) => ({
-      backgroundImage: svg(`<path d='M0 20 L10 0 L20 20 Z' fill='${ink}'/>`, 20, 20),
-      backgroundSize: '20px 20px',
+      backgroundSize: `${px(24, s)} ${px(12, s)}`,
     }),
   },
 ]
+
+/** 柄の大きさ(倍率)。中が 1.0.0 までの大きさ */
+export const PATTERN_SCALES = [
+  { name: 'small', label: '小', scale: 0.6 },
+  { name: 'medium', label: '中', scale: 1 },
+  { name: 'large', label: '大', scale: 1.6 },
+] as const
+
+export type PatternScaleName = (typeof PATTERN_SCALES)[number]['name']
 
 export interface CoverLayout {
   name: string
@@ -135,9 +111,13 @@ export const COVER_LAYOUTS: readonly CoverLayout[] = [
   { name: 'spine', label: '背表紙' },
 ]
 
+/** 書体の種類(本文に反映するのはこの種類だけ。太さ・字間は表紙だけ) */
+export type FontKind = 'gothic' | 'mincho' | 'maru'
+
 export interface CoverFont {
   name: string
   label: string
+  kind: FontKind
   family: string
   weight: number
   /** 字間(em) */
@@ -152,23 +132,52 @@ const GOTHIC = 'var(--font)'
 const CLASSIC = `Georgia, 'Times New Roman', ${MINCHO}`
 
 export const COVER_FONTS: readonly CoverFont[] = [
-  { name: 'gothicBold', label: 'ゴシック 太', family: GOTHIC, weight: 700, spacing: 0 },
-  { name: 'gothic', label: 'ゴシック', family: GOTHIC, weight: 500, spacing: 0 },
-  { name: 'gothicLight', label: 'ゴシック 細', family: GOTHIC, weight: 300, spacing: 0.02 },
-  { name: 'gothicWide', label: 'ゴシック 広', family: GOTHIC, weight: 600, spacing: 0.2 },
-  { name: 'minchoBold', label: '明朝 太', family: MINCHO, weight: 700, spacing: 0 },
-  { name: 'mincho', label: '明朝', family: MINCHO, weight: 500, spacing: 0.02 },
-  { name: 'minchoWide', label: '明朝 広', family: MINCHO, weight: 400, spacing: 0.25 },
-  { name: 'maru', label: '丸ゴシック', family: MARU, weight: 700, spacing: 0.02 },
-  { name: 'maruLight', label: '丸ゴシック 細', family: MARU, weight: 400, spacing: 0.05 },
-  { name: 'classic', label: 'クラシック', family: CLASSIC, weight: 700, spacing: 0.05 },
+  { name: 'gothicBold', label: 'ゴシック 太', kind: 'gothic', family: GOTHIC, weight: 700, spacing: 0 },
+  { name: 'gothic', label: 'ゴシック', kind: 'gothic', family: GOTHIC, weight: 500, spacing: 0 },
+  { name: 'gothicLight', label: 'ゴシック 細', kind: 'gothic', family: GOTHIC, weight: 300, spacing: 0.02 },
+  { name: 'gothicWide', label: 'ゴシック 広', kind: 'gothic', family: GOTHIC, weight: 600, spacing: 0.2 },
+  { name: 'minchoBold', label: '明朝 太', kind: 'mincho', family: MINCHO, weight: 700, spacing: 0 },
+  { name: 'mincho', label: '明朝', kind: 'mincho', family: MINCHO, weight: 500, spacing: 0.02 },
+  { name: 'minchoWide', label: '明朝 広', kind: 'mincho', family: MINCHO, weight: 400, spacing: 0.25 },
+  { name: 'maru', label: '丸ゴシック', kind: 'maru', family: MARU, weight: 700, spacing: 0.02 },
+  { name: 'maruLight', label: '丸ゴシック 細', kind: 'maru', family: MARU, weight: 400, spacing: 0.05 },
+  // クラシックは欧文が Georgia。本文には欧文の書体は使わず、明朝にする
+  { name: 'classic', label: 'クラシック', kind: 'mincho', family: CLASSIC, weight: 700, spacing: 0.05 },
 ]
 
-/** 柄を描く色:暗い表紙には白っぽい線、明るい表紙には黒っぽい線 */
+/** 本文の書体。cover は「表紙と同じ種類」 */
+export const BODY_FONTS = [
+  { name: 'cover', label: '表紙と同じ' },
+  { name: 'gothic', label: 'ゴシック' },
+  { name: 'mincho', label: '明朝' },
+  { name: 'maru', label: '丸ゴシック' },
+] as const
+
+export type BodyFontName = (typeof BODY_FONTS)[number]['name']
+
+const FONT_FAMILY: Record<FontKind, string> = { gothic: GOTHIC, mincho: MINCHO, maru: MARU }
+
+/** 本文に使う書体の種類 */
+export function bodyFontKind(design: Pick<NoteDesign, 'bodyFont' | 'cover'>): FontKind {
+  if (design.bodyFont !== 'cover') return design.bodyFont
+  return coverFont(design.cover.font)?.kind ?? 'gothic'
+}
+
+/** 本文の font-family(CSS の値) */
+export const bodyFontFamily = (design: Pick<NoteDesign, 'bodyFont' | 'cover'>) => FONT_FAMILY[bodyFontKind(design)]
+/** 書体の種類の font-family(デザインの見本用) */
+export const fontKindFamily = (kind: FontKind) => FONT_FAMILY[kind]
+
+/** なじむ色:暗い表紙には白っぽい線、明るい表紙には黒っぽい線(1.0.0 までの柄の色) */
 export const patternInk = (tone: Tone) => (tone === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.08)')
+
+/** 柄を描く色。auto(なじむ色)はベース色の明るさで決め、それ以外は選んだ色 */
+export const subColorInk = (name: string, baseTone: Tone) => subColor(name)?.hex ?? patternInk(baseTone)
+
 /** 表紙のタイトルの色 */
 export const coverTextColor = (tone: Tone) => (tone === 'dark' ? '#ffffff' : '#3a3530')
 
 export const coverPattern = (name: string | undefined) => COVER_PATTERNS.find((p) => p.name === name)
+export const patternScale = (name: string | undefined) => PATTERN_SCALES.find((p) => p.name === name)
 export const coverLayout = (name: string | undefined) => COVER_LAYOUTS.find((l) => l.name === name)
 export const coverFont = (name: string | undefined) => COVER_FONTS.find((f) => f.name === name)

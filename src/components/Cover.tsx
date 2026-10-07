@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import type { NoteDesign } from '../db/db'
-import { coverFont, coverPattern, coverTextColor, patternInk } from '../design/cover'
+import { coverFont, coverPattern, coverTextColor, patternScale, subColorInk } from '../design/cover'
 import { normalizeDesign } from '../design/defaults'
 import { coverColor } from '../design/palette'
 
@@ -23,7 +23,11 @@ export function Cover({
   const font = coverFont(d.cover.font)!
   const style = {
     backgroundColor: color.hex,
-    ...coverPattern(d.cover.pattern)!.css(patternInk(color.tone)),
+    // 柄:ベース色の上にサブ色で描く
+    ...coverPattern(d.cover.pattern)!.css(
+      subColorInk(d.cover.subColor, color.tone),
+      patternScale(d.cover.patternScale)!.scale,
+    ),
     '--cover-text': coverTextColor(color.tone),
     fontFamily: font.family,
     fontWeight: font.weight,

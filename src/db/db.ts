@@ -1,11 +1,12 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type { JSONContent } from '@tiptap/core'
-import { legacyDesign } from '../design/defaults'
+import { legacyDesignV3, upgradeDesignToV5 } from '../design/defaults'
 import type { BorderWidthName } from '../design/palette'
+import type { BodyFontName, PatternScaleName } from '../design/cover'
 
 // データ構造のバージョン。変えるときは docs/data-model.md も更新し、
 // 下の db.version(...) に新しい版と upgrade(マイグレーション)を追加する
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 
 /** ノートのデザイン(v3〜)。色・種類はすべて名前で保存する(src/design/) */
 export interface NoteDesign {
@@ -13,8 +14,20 @@ export interface NoteDesign {
   paper: string | null
   /** 縁 */
   border: { color: string; width: BorderWidthName }
-  /** 表紙 */
-  cover: { pattern: string; color: string; layout: string; font: string }
+  /**
+   * 表紙。color はベース色。
+   * subColor(柄の色。auto は なじむ色)・patternScale(柄の大きさ)は v5〜
+   */
+  cover: {
+    pattern: string
+    color: string
+    subColor: string
+    patternScale: PatternScaleName
+    layout: string
+    font: string
+  }
+  /** 本文の書体(v5〜)。cover は「表紙の書体と同じ種類」 */
+  bodyFont: BodyFontName
 }
 
 export interface Note {
@@ -134,7 +147,8 @@ db.version(3)
       .modify((note: Partial<Note>) => {
         if (typeof note.favorite !== 'boolean') note.favorite = false
         if (note.deletedAt === undefined) note.deletedAt = null
-        if (!note.design) note.design = legacyDesign()
+        // v3 の形で入れる(このあと v5 の upgrade で今の形になる)
+        if (!note.design) note.design = legacyDesignV3() as unknown as NoteDesign
       })
     await tx
       .table('pages')
@@ -152,6 +166,25 @@ db.version(4).stores({
   images: 'id',
   meta: 'key',
 })
+
+// v5(アプリ 1.1.0〜):デザインに 本文の書体・表紙のサブ色・柄の大きさ を追加し、
+// 市松・青海波・鱗の柄をなくした(その柄のノートは無地にする)。インデックスは変わらない。
+// 更新日時(updatedAt)は変えない
+db.version(5)
+  .stores({
+    notes: 'id, order',
+    pages: 'id, noteId, [noteId+order]',
+    images: 'id',
+    meta: 'key',
+  })
+  .upgrade((tx) =>
+    tx
+      .table('notes')
+      .toCollection()
+      .modify((note: Partial<Note>) => {
+        note.design = upgradeDesignToV5(note.design)
+      }),
+  )
 
 /** 空のページ内容 */
 export const emptyDoc = (): JSONContent => ({ type: 'doc', content: [{ type: 'paragraph' }] })

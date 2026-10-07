@@ -1,19 +1,59 @@
 import type { NoteDesign } from '../db/db'
-import { COVER_FONTS, COVER_LAYOUTS, COVER_PATTERNS } from './cover'
-import { BORDER_COLORS, BORDER_WIDTHS, COVER_COLORS, PAPER_COLORS, type BorderWidthName } from './palette'
+import { BODY_FONTS, COVER_FONTS, COVER_LAYOUTS, COVER_PATTERNS, PATTERN_SCALES, type BodyFontName, type PatternScaleName } from './cover'
+import {
+  BORDER_COLORS,
+  BORDER_WIDTHS,
+  COVER_COLORS,
+  PAPER_COLORS,
+  SUB_COLORS,
+  SUB_COLOR_AUTO,
+  type BorderWidthName,
+} from './palette'
 
 /**
- * 今までのノート(0.3.0 まで)と同じ見た目になるデザイン。
- * 既存のノートを v3 に移すときに使う
+ * v3(アプリ 0.4.0)でデザインを追加したときの形。0.3.0 までのノートと同じ見た目。
+ * v2 → v3 の移し替えで使うので、形を変えないこと(その後 upgradeDesignToV5 で今の形にする)
  */
-export const legacyDesign = (): NoteDesign => ({
+export const legacyDesignV3 = () => ({
   paper: null,
-  border: { color: 'brown', width: 'none' },
+  border: { color: 'brown', width: 'none' as const },
   cover: { pattern: 'plain', color: 'slate', layout: 'topLeft', font: 'gothicBold' },
 })
 
+/** v5(アプリ 1.1.0)でなくした柄。保存済みのノートは無地にする */
+const REMOVED_PATTERNS = new Set(['ichimatsu', 'seigaiha', 'uroko'])
+
 /**
- * 新しいノートのデザイン:表紙の色はランダム、柄は無地。
+ * デザインを v5 の形にする(本文の書体・サブ色・柄の大きさを足し、なくした柄を無地にする)。
+ * DB の移し替え・バックアップファイルの読み込みの両方で使う。何度通しても同じ結果になる。
+ * 知らない項目・値はそのまま残す(表示のときに normalizeDesign で既定値になる)
+ */
+export function upgradeDesignToV5(raw: unknown): NoteDesign {
+  if (!raw || typeof raw !== 'object') return upgradeDesignToV5(legacyDesignV3())
+  const d = raw as Record<string, any>
+  const cover = d.cover && typeof d.cover === 'object' ? d.cover : {}
+  return {
+    ...d,
+    // 今あるノートの本文は「表紙と同じ」にする(ユーザーと決めた方針)
+    bodyFont: d.bodyFont ?? 'cover',
+    cover: {
+      ...cover,
+      pattern: REMOVED_PATTERNS.has(cover.pattern) ? 'plain' : cover.pattern,
+      // なじむ色:1.0.0 までと同じ半透明の柄の色
+      subColor: cover.subColor ?? SUB_COLOR_AUTO,
+      patternScale: cover.patternScale ?? 'medium',
+    },
+  } as NoteDesign
+}
+
+/**
+ * 0.3.0 までのノートと同じ見た目のデザイン(今の形)。
+ * 本文の書体は「表紙と同じ」で、表紙が ゴシック 太 なので本文もゴシック(今までと同じ)
+ */
+export const legacyDesign = (): NoteDesign => upgradeDesignToV5(legacyDesignV3())
+
+/**
+ * 新しいノートのデザイン:表紙の色はランダム、柄は無地、本文は表紙と同じ書体。
  * avoidColor(直前に作ったノートの表紙の色)とは違う色にする
  */
 export function newNoteDesign(random: () => number = Math.random, avoidColor?: string): NoteDesign {
@@ -28,9 +68,12 @@ const paperNames = names(PAPER_COLORS)
 const borderNames = names(BORDER_COLORS)
 const widthNames = names(BORDER_WIDTHS)
 const coverColorNames = names(COVER_COLORS)
+const subColorNames = new Set([SUB_COLOR_AUTO, ...names(SUB_COLORS)])
 const patternNames = names(COVER_PATTERNS)
+const scaleNames = names(PATTERN_SCALES)
 const layoutNames = names(COVER_LAYOUTS)
 const fontNames = names(COVER_FONTS)
+const bodyFontNames = names(BODY_FONTS)
 
 const pick = (v: unknown, allowed: Set<string>, fallback: string): string =>
   typeof v === 'string' && allowed.has(v) ? v : fallback
@@ -54,8 +97,11 @@ export function normalizeDesign(raw: unknown): NoteDesign {
     cover: {
       pattern: pick(cover.pattern, patternNames, base.cover.pattern),
       color: pick(cover.color, coverColorNames, base.cover.color),
+      subColor: pick(cover.subColor, subColorNames, base.cover.subColor),
+      patternScale: pick(cover.patternScale, scaleNames, base.cover.patternScale) as PatternScaleName,
       layout: pick(cover.layout, layoutNames, base.cover.layout),
       font: pick(cover.font, fontNames, base.cover.font),
     },
+    bodyFont: pick(d.bodyFont, bodyFontNames, base.bodyFont) as BodyFontName,
   }
 }

@@ -10,6 +10,8 @@
   /* 左は行を動かすハンドルの分だけ広くとる */
   padding: 20px 22px 40px 34px;
   outline: none;
+  /* 本文の書体(ノートのデザインで選ぶ。NoteView.tsx・PrintView.tsx が指定する) */
+  font-family: var(--note-font, var(--font));
   font-size: 16px;
   line-height: 1.8;
   word-break: break-word;

@@ -13,6 +13,7 @@ import {
   trashPage,
 } from '../../db/repo'
 import { normalizeDesign } from '../../design/defaults'
+import { bodyFontFamily } from '../../design/cover'
 import { borderColor, borderWidth, paperColor } from '../../design/palette'
 import { paperTone, useTheme } from '../../theme/theme'
 import { shelfHistory } from '../../history/shelfHistory'
@@ -632,12 +633,16 @@ export function NoteView({
   const paperStyle = paper ? ({ '--paper': paper.hex } as CSSProperties) : undefined
   const border = borderWidth(design.border.width)
   const hasBorder = !!border && border.px > 0
-  const viewStyle = hasBorder
-    ? ({
-        '--note-border-width': `${border.px}px`,
-        '--note-border-color': borderColor(design.border.color)?.hex,
-      } as CSSProperties)
-    : undefined
+  const viewStyle = {
+    // 本文の書体(本文・付箋で使う。editor.css・sticky.css)
+    '--note-font': bodyFontFamily(design),
+    ...(hasBorder
+      ? {
+          '--note-border-width': `${border.px}px`,
+          '--note-border-color': borderColor(design.border.color)?.hex,
+        }
+      : {}),
+  } as CSSProperties
 
   const lastIndex = pageCount // 「ページを追加」の枠
   const spreadNumber = Math.floor(current / perView) + 1

@@ -318,6 +318,10 @@
   font-size: 14px;
   cursor: pointer;
 }
+.segmented-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
 .segmented-btn.is-selected {
   background: var(--surface);
   color: var(--ink);

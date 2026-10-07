@@ -2,9 +2,27 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import type { NoteDesign } from '../../db/db'
 import { Icon } from '../../components/Icon'
 import { Cover } from '../../components/Cover'
-import { COVER_FONTS, COVER_LAYOUTS, COVER_PATTERNS, patternInk } from '../../design/cover'
+import {
+  BODY_FONTS,
+  COVER_FONTS,
+  COVER_LAYOUTS,
+  COVER_PATTERNS,
+  PATTERN_SCALES,
+  bodyFontKind,
+  fontKindFamily,
+  patternScale,
+  subColorInk,
+} from '../../design/cover'
 import { normalizeDesign } from '../../design/defaults'
-import { BORDER_COLORS, BORDER_WIDTHS, COVER_COLORS, PAPER_COLORS, coverColor } from '../../design/palette'
+import {
+  BORDER_COLORS,
+  BORDER_WIDTHS,
+  COVER_COLORS,
+  PAPER_COLORS,
+  SUB_COLORS,
+  SUB_COLOR_AUTO,
+  coverColor,
+} from '../../design/palette'
 
 type Tab = 'cover' | 'paper'
 
@@ -42,7 +60,9 @@ export function DesignPanel({
     onChange({ ...design, border: { ...design.border, ...patch } })
   /** 見本の表紙(1か所だけ変えたもの) */
   const sample = (patch: Partial<NoteDesign['cover']>): NoteDesign => ({ ...design, cover: { ...design.cover, ...patch } })
-  const tone = coverColor(design.cover.color)!.tone
+  // 柄の見本:今のベース色・サブ色・大きさで描く
+  const ink = subColorInk(design.cover.subColor, coverColor(design.cover.color)!.tone)
+  const scale = patternScale(design.cover.patternScale)!.scale
 
   return (
     <div className="toc-backdrop design-backdrop" onClick={onClose}>
@@ -85,7 +105,7 @@ export function DesignPanel({
                 </span>
               </div>
 
-              <DesignGroup label="色">
+              <DesignGroup label="ベース色">
                 {COVER_COLORS.map((c) => (
                   <ColorChoice
                     key={c.name}
@@ -96,6 +116,27 @@ export function DesignPanel({
                   />
                 ))}
               </DesignGroup>
+
+              <DesignGroup label="サブ色(柄の色)">
+                <button
+                  className={`swatch swatch--wide${design.cover.subColor === SUB_COLOR_AUTO ? ' is-selected' : ''}`}
+                  aria-pressed={design.cover.subColor === SUB_COLOR_AUTO}
+                  onClick={() => setCover({ subColor: SUB_COLOR_AUTO })}
+                >
+                  なじむ色
+                </button>
+                {SUB_COLORS.map((c) => (
+                  <ColorChoice
+                    key={c.name}
+                    label={c.label}
+                    hex={c.hex}
+                    selected={design.cover.subColor === c.name}
+                    disabled={design.cover.pattern === 'plain'}
+                    onClick={() => setCover({ subColor: c.name })}
+                  />
+                ))}
+              </DesignGroup>
+              <p className="design-note">「なじむ色」は、ベース色に合わせた薄い色で柄を描きます。</p>
 
               <DesignGroup label="柄">
                 {COVER_PATTERNS.map((p) => (
@@ -111,13 +152,30 @@ export function DesignPanel({
                       style={
                         {
                           backgroundColor: coverColor(design.cover.color)!.hex,
-                          ...p.css(patternInk(tone)),
+                          ...p.css(ink, scale),
                         } as CSSProperties
                       }
                     />
                     <span className="design-tile-label">{p.label}</span>
                   </button>
                 ))}
+              </DesignGroup>
+
+              <DesignGroup label="柄の大きさ">
+                <div className="segmented design-widths" role="radiogroup" aria-label="柄の大きさ">
+                  {PATTERN_SCALES.map((s) => (
+                    <button
+                      key={s.name}
+                      role="radio"
+                      aria-checked={design.cover.patternScale === s.name}
+                      className={`segmented-btn${design.cover.patternScale === s.name ? ' is-selected' : ''}`}
+                      disabled={design.cover.pattern === 'plain'}
+                      onClick={() => setCover({ patternScale: s.name })}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
               </DesignGroup>
 
               <DesignGroup label="文字の配置">
@@ -145,7 +203,30 @@ export function DesignPanel({
                   />
                 ))}
               </DesignGroup>
-              <p className="design-note">書体は端末に入っているものを使うため、端末によって見た目が少し変わります。</p>
+
+              <DesignGroup label="本文の書体">
+                {BODY_FONTS.map((f) => {
+                  const kind = f.name === 'cover' ? bodyFontKind({ ...design, bodyFont: 'cover' }) : f.name
+                  return (
+                    <button
+                      key={f.name}
+                      className={`design-tile${design.bodyFont === f.name ? ' is-selected' : ''}`}
+                      aria-pressed={design.bodyFont === f.name}
+                      title={f.label}
+                      onClick={() => onChange({ ...design, bodyFont: f.name })}
+                    >
+                      <span className="design-tile-font" style={{ fontFamily: fontKindFamily(kind) }}>
+                        あア
+                      </span>
+                      <span className="design-tile-label">{f.label}</span>
+                    </button>
+                  )
+                })}
+              </DesignGroup>
+              <p className="design-note">
+                本文には書体の種類(ゴシック・明朝・丸ゴシック)だけを使い、太さや字間は表紙だけに使います。
+                書体は端末に入っているものを使うため、端末によって見た目が少し変わります。
+              </p>
             </>
           ) : (
             <>

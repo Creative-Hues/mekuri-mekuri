@@ -77,12 +77,26 @@ export const COVER_COLORS: readonly DesignColor[] = [
   { name: 'charcoal', label: '墨', hex: '#3a3a3e', tone: 'dark' },
 ]
 
+/**
+ * 表紙の柄の色(サブ色、アプリ 1.1.0〜)。表紙の色に白と黒を足したもの。
+ * このほかに auto(なじむ色:ベース色に合わせた半透明の色。1.0.0 までの柄の色)がある
+ */
+export const SUB_COLOR_AUTO = 'auto'
+export const SUB_COLORS: readonly DesignColor[] = [
+  ...COVER_COLORS,
+  { name: 'white', label: '白', hex: '#ffffff', tone: 'light' },
+  { name: 'black', label: '黒', hex: '#2b2b2b', tone: 'dark' },
+]
+
 const byName = (list: readonly DesignColor[]) => new Map(list.map((c) => [c.name, c]))
 const paperMap = byName(PAPER_COLORS)
 const borderMap = byName(BORDER_COLORS)
 const coverMap = byName(COVER_COLORS)
+const subMap = byName(SUB_COLORS)
 
 export const paperColor = (name: string | null | undefined) => (name ? paperMap.get(name) : undefined)
 export const borderColor = (name: string | null | undefined) => (name ? borderMap.get(name) : undefined)
 export const coverColor = (name: string | null | undefined) => (name ? coverMap.get(name) : undefined)
-export const borderWidth = (name: string | null | undefined) => BORDER_WIDTHS.find((w) => w.name === name)
+/** サブ色(auto・知らない名前は undefined) */
+export const subColor = (name: string | null | undefined) => (name ? subMap.get(name) : undefined)
+export const borderWidth =(name: string | null | undefined) => BORDER_WIDTHS.find((w) => w.name === name)

@@ -7,6 +7,7 @@ import { buildExtensions, buildStickyExtensions } from '../editor/extensions'
 import { mapContent } from '../editor/contentWalk'
 import { borderColor, borderWidth, paperColor } from '../design/palette'
 import { normalizeDesign } from '../design/defaults'
+import { bodyFontFamily } from '../design/cover'
 import type { ExportSource } from './load'
 
 /**
@@ -118,7 +119,9 @@ export function PrintView({ source, job }: { source: ExportSource; job: number }
   const paper = paperColor(design.paper)
   const border = borderWidth(design.border.width)
   const paperClass = `tone-${paper?.tone ?? 'light'}`
-  const paperStyle: CSSProperties = {
+  const paperStyle = {
+    // 本文の書体も画面と同じにする
+    '--note-font': bodyFontFamily(design),
     ...(paper ? ({ '--paper': paper.hex } as CSSProperties) : {}),
     ...(border && border.px > 0 ? { border: `${border.px}px solid ${borderColor(design.border.color)?.hex}` } : {}),
   }
