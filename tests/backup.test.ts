@@ -30,9 +30,9 @@ function v1File() {
 }
 
 describe('バックアップの読み取り(parseBackup)', () => {
-  it('v1 のファイルは今の形(v5)に変換される(付箋は空・ゴミ箱でない・今までの見た目)', () => {
+  it('v1 のファイルは今の形(v6)に変換される(付箋は空・ゴミ箱でない・今までの見た目)', () => {
     const backup = parseBackup(v1File())
-    expect(backup.schemaVersion).toBe(5)
+    expect(backup.schemaVersion).toBe(6)
     expect(backup.notes[0]).toMatchObject({ favorite: false, deletedAt: null, design: legacyDesign() })
     expect(backup.notes).toHaveLength(1)
     expect(backup.pages).toHaveLength(2)
@@ -158,7 +158,7 @@ describe('v3 のバックアップ(お気に入り・ゴミ箱・デザイン)',
       pages: [{ id: 'p1', noteId: 'n1', order: 0, content, stickies: [], createdAt: 1, updatedAt: 1 }],
     })
     const backup = parseBackup(file)
-    expect(backup.schemaVersion).toBe(5)
+    expect(backup.schemaVersion).toBe(6)
     expect(backup.notes[0]).toMatchObject({ favorite: false, deletedAt: null, design: legacyDesign() })
     expect(backup.pages[0]).toMatchObject({ deletedAt: null, deletedIndex: null, stickies: [] })
   })

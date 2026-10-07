@@ -2,7 +2,7 @@
 
 ノートのデータはすべて端末内の IndexedDB に保存する。外部サーバーには送らない。
 
-- 現在のスキーマバージョン:**5**(`src/db/db.ts` の `SCHEMA_VERSION`)
+- 現在のスキーマバージョン:**6**(`src/db/db.ts` の `SCHEMA_VERSION`)
 - DB名:`mekuri-mekuri`(Dexie で管理)
 
 ## テーブル
@@ -131,13 +131,32 @@ TipTap の JSON(`{ type: 'doc', content: [...] }`)。v1 で使うもの:
 
 | ノード / mark | attrs | 説明 |
 | --- | --- | --- |
-| `table` → `tableRow` → `tableCell` | `tableCell` の `bg`:マーカーと同じ色名、または null | 表。セルの中は段落(`paragraph`)だけ。`colspan`・`rowspan`・`colwidth`・`align` は TipTap の表の標準の項目(このアプリでは変えない) |
-| `tableHeader` | `bg` | 見出しセル。このアプリでは作らないが、ほかのアプリから貼り付けた表を読めるように用意している |
+| `table` → `tableRow` → `tableCell` | 下の「表(v6〜)」 | 表。セルの中は段落(`paragraph`)だけ |
+| `tableHeader` | `tableCell` と同じ | 見出しセル。**保存しない**(v6〜)。ほかのアプリから貼り付けた表を読むための入口で、貼り付けるときに `tableCell`+表の見出しの設定に変える |
 | `image` | `imageId`・`width`・`height` | 画像。データは images テーブル |
 | `noteLink` | `noteId`・`pageId`(ノート全体なら null) | 別ノート・別ページへのリンク(カード)。ノート名・ページ番号は表示のたびに最新を出す |
 | `link`(mark) | `href`・`target`・`rel` | Webリンク。`href` は http(s) か mailto のみ |
 
 - 付箋の中では、表・画像・ノートへのリンクは使わない(Webリンクは使える)
+
+### 表(v6〜、アプリ 1.3.0〜)
+
+| ノード | 項目 | 値 |
+| --- | --- | --- |
+| `table` | `headerRow` | 1行目を見出しにする(太字+薄い色)。boolean、既定 false。行を並び替えても「今の1行目」が見出し |
+| | `headerColumn` | 1列目を見出しにする。boolean、既定 false |
+| `tableCell` | `bg` | セルの背景色。マーカーと同じ色名、または null。見出しの色より優先 |
+| | `align` | 文字の配置:`center` `right`、または null(左) |
+| | `colspan`・`rowspan` | 結合(何列・何行ぶんか)。既定 1 |
+| | `colwidth` | 列の幅(px)の配列(結合したセルは、またぐ列の数だけ)。null なら中身に合わせる。幅を1つ変えると、表のすべての列の今の幅を記録する |
+
+- `colspan`・`rowspan`・`colwidth`・`align` は TipTap(prosemirror-tables)の表の標準の項目。v5 までは使っていなかった(ほかのアプリから貼り付けた表にだけ入ることがあった)
+- v5 までの表の v6 への移し替え(`upgradeTablesToV6`、`src/editor/tableMigrate.ts`。DB・バックアップファイル・貼り付けで同じ関数):
+  - `tableHeader` → `tableCell`(色などの項目・中身はそのまま)
+  - 1行目がすべて `tableHeader` だった表 → `headerRow: true`。2行以上あり、各行の最初のセルがすべて `tableHeader` だった表 → `headerColumn: true`
+  - 1行目・1列目以外の `tableHeader` は普通のセルになる(太字ではなくなる)
+  - 見出しの設定のない表には `headerRow: false`・`headerColumn: false` を入れる。表のないページは変えない
+  - ゴミ箱のページも対象。何度通しても同じ結果。更新日時は変えない
 
 ### 色の装飾(アプリ 0.2.0〜)
 
@@ -157,8 +176,8 @@ TipTap の JSON(`{ type: 'doc', content: [...] }`)。v1 で使うもの:
 ```json
 {
   "app": "mekuri-mekuri",
-  "schemaVersion": 5,
-  "appVersion": "1.1.0",
+  "schemaVersion": 6,
+  "appVersion": "1.3.0",
   "exportedAt": 1759740000000,
   "notes": [ /* notes の行そのまま */ ],
   "pages": [ /* pages の行そのまま */ ],
@@ -191,3 +210,4 @@ TipTap の JSON(`{ type: 'doc', content: [...] }`)。v1 で使うもの:
 - (アプリ 1.0.0:meta に `onboardingDoneAt` を追加。スキーマ番号は 4 のまま、移し替えは不要)
 - (アプリ 1.2.0:ファイル(テキスト・Markdown・Word)の読み込みを追加。読み込んだ内容は今の notes・pages・images の形のまま新しいノートとして作るので、スキーマ番号は 5 のまま、移し替えは不要)
 - v5(アプリ 1.1.0〜):ノートの `design` に `bodyFont`(本文の書体)、`design.cover` に `subColor`(サブ色)・`patternScale`(柄の大きさ)・`textColor`(タイトルの文字色)を追加。柄 `ichimatsu` `seigaiha` `uroko` を削除し `wideStripe` を追加。既存のノート・v4 以前のバックアップファイルは「本文は表紙と同じ・なじむ色・中・タイトルの文字色は自動・削除した柄は無地」に移す。インデックスは変わらない
+- v6(アプリ 1.3.0〜):表の見出しを、見出しセル(`tableHeader`)から表の設定 `headerRow`・`headerColumn` に移した。セルの `colspan`・`rowspan`(結合)・`colwidth`(列の幅)・`align`(文字の配置)を使い始めた。既存のページ(ゴミ箱のページも)・v5 以前のバックアップファイルの表は、上の「表(v6〜)」の移し替えを通す。インデックスは変わらない

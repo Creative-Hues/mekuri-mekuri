@@ -79,7 +79,7 @@ describe('データ移行 v4 → v5', () => {
     expect(await db.images.count()).toBe(1)
     expect((await db.meta.get('firstLaunchAt'))?.value).toBe(123)
 
-    expect(db.verno).toBe(5)
+    expect(db.verno).toBe(6)
     db.close()
   })
 })

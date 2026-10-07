@@ -122,10 +122,12 @@ describe('ヘルプ', () => {
     help(false)
     expect(host.querySelector('kbd')).toBeNull()
     const text = host.textContent ?? ''
-    for (const t of ['スワイプ', 'カーソルを置くと', '≡ を長押し', 'ボタンを長押しすると', 'キーボードを閉じる', 'セルを長押し']) {
+    for (const t of ['スワイプ', 'カーソルを置くと', '≡ を長押し', 'ボタンを長押しすると', 'キーボードを閉じる', 'つまみを押すと', '丸いつまみ']) {
       expect(text, t).toContain(t)
     }
     for (const t of ['マウス', 'クリック', 'ショートカット', 'Ctrl', '⌘']) expect(text, t).not.toContain(t)
+    // セルの長押しのメニューはなくした(1.3.0)
+    expect(text).not.toContain('セルを長押し')
     expect(host.querySelector('.toc--sheet')).toBeTruthy()
   })
 })

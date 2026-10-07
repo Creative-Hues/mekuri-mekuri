@@ -11,18 +11,47 @@
 }
 
 /* ---- 表 ---- */
+/*
+ * 並び:左の列に行のつまみ、真ん中に横スクロールする枠(上に列のつまみ・表)、右と下に「＋」。
+ * つまみの場所はいつも空けておく(出し入れで表がずれないように)。
+ * つまみが見えるのは、PC はマウスを乗せた表、スマホはカーソルのある表(.is-active)だけ
+ */
 .table-block {
+  /* つまみの場所の幅(行)・高さ(列) */
+  --grip: 18px;
+  --grip-col: 24px;
   display: grid;
-  grid-template-columns: minmax(0, max-content) 26px;
+  grid-template-columns: var(--grip) minmax(0, max-content) 26px;
   grid-template-rows: auto 26px;
-  gap: 4px;
-  margin: 0.6em 0;
+  column-gap: 2px;
+  row-gap: 4px;
+  margin: 0.4em 0 0.6em;
+}
+.table-rowgrips {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1;
 }
 .table-scroll {
-  grid-column: 1;
+  grid-column: 2;
   grid-row: 1;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+.table-inner {
+  position: relative;
+  width: max-content;
+  min-width: 100%;
+  /* 上に列のつまみの場所。右の 1px は、表の外側の線の太さの半分ぶん(線で横スクロールが出ないように) */
+  padding-top: var(--grip-col);
+  padding-right: 1px;
+}
+.table-colgrips {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--grip-col);
 }
 .table-block table {
   border-collapse: collapse;
@@ -38,53 +67,292 @@
   font-weight: inherit;
   line-height: 1.6;
 }
-.table-block th {
-  font-weight: 700;
+/* 列の幅を決めた表:幅はつまみで決めた通りにする */
+.table-block table.is-fixed {
+  table-layout: fixed;
+}
+.table-block table.is-fixed td,
+.table-block table.is-fixed th,
+.table-block td[colwidth],
+.table-block th[colwidth] {
+  min-width: 0;
+  max-width: none;
+  overflow-wrap: anywhere;
 }
 .table-block td p,
 .table-block th p {
   margin: 0;
 }
+/* 見出しの行・列:太字+薄い色(セルに色を付けたら、その色を優先) */
+.table-block th,
+.table-block .is-head {
+  font-weight: 700;
+  background: var(--table-head);
+}
 .table-block .selectedCell {
   outline: 2px solid var(--accent-ink);
   outline-offset: -2px;
+  /* 選んだセルは、セルの色の上にうすくアクセントの色を重ねる */
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--accent-ink) 14%, transparent),
+    color-mix(in srgb, var(--accent-ink) 14%, transparent)
+  );
 }
 /* セルの背景色(マーカーと同じ色名) */
-.table-block [data-bg='yellow'] { background: var(--mk-yellow); }
-.table-block [data-bg='orange'] { background: var(--mk-orange); }
-.table-block [data-bg='pink'] { background: var(--mk-pink); }
-.table-block [data-bg='red'] { background: var(--mk-red); }
-.table-block [data-bg='green'] { background: var(--mk-green); }
-.table-block [data-bg='blue'] { background: var(--mk-blue); }
-.table-block [data-bg='purple'] { background: var(--mk-purple); }
-.table-block [data-bg='gray'] { background: var(--mk-gray); }
-/* 右端と下端の「＋」(常に表示) */
+.table-block td[data-bg='yellow'], .table-block th[data-bg='yellow'] { background-color: var(--mk-yellow); }
+.table-block td[data-bg='orange'], .table-block th[data-bg='orange'] { background-color: var(--mk-orange); }
+.table-block td[data-bg='pink'], .table-block th[data-bg='pink'] { background-color: var(--mk-pink); }
+.table-block td[data-bg='red'], .table-block th[data-bg='red'] { background-color: var(--mk-red); }
+.table-block td[data-bg='green'], .table-block th[data-bg='green'] { background-color: var(--mk-green); }
+.table-block td[data-bg='blue'], .table-block th[data-bg='blue'] { background-color: var(--mk-blue); }
+.table-block td[data-bg='purple'], .table-block th[data-bg='purple'] { background-color: var(--mk-purple); }
+.table-block td[data-bg='gray'], .table-block th[data-bg='gray'] { background-color: var(--mk-gray); }
+
+/*
+ * 行・列のつまみ。ノートの中身より目立たないよう、ふだんは細く短い薄いグレーの棒(表の線より少し濃い程度)。
+ * マウスを乗せたつまみ・選んでいる行や列のつまみだけ、アクセントの色(ライトは水色・ダークは薄紫)で少し太くする。
+ * 押せる範囲は、行のつまみは幅 32px・行の高さ、列のつまみは高さ 32px・列の幅
+ */
+.table-grip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 指で触っても、表の横スクロールやページ送りにならないようにする */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  cursor: grab;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+}
+.table-grip::before {
+  content: '';
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--paper-edge) 70%, var(--ink-faint));
+  transition:
+    width 0.12s,
+    height 0.12s,
+    background-color 0.12s;
+}
+.table-grip--row {
+  left: 0;
+  width: var(--grip);
+}
+.table-grip--row::before {
+  width: 3px;
+  height: min(14px, calc(100% - 10px));
+}
+.table-grip--col {
+  top: 0;
+  height: var(--grip-col);
+}
+.table-grip--col::before {
+  width: min(14px, calc(100% - 10px));
+  height: 3px;
+}
+.table-grip:hover::before,
+.table-grip.is-selected::before,
+.table-grip.is-dragging::before {
+  background: var(--accent);
+}
+.table-grip--row:hover::before,
+.table-grip--row.is-selected::before,
+.table-grip--row.is-dragging::before {
+  width: 5px;
+  height: min(20px, calc(100% - 8px));
+}
+.table-grip--col:hover::before,
+.table-grip--col.is-selected::before,
+.table-grip--col.is-dragging::before {
+  width: min(20px, calc(100% - 8px));
+  height: 5px;
+}
+.table-grip.is-dragging {
+  cursor: grabbing;
+}
+/* 押せる範囲を広げる(見た目は変えない)。列のつまみは横に広げない(表の外にはみ出して横スクロールにならないように) */
+.table-grip--row::after,
+.table-grip--col::after {
+  content: '';
+  position: absolute;
+}
+.table-grip--row::after {
+  /* 18px + 左 8px + 右 6px = 32px */
+  inset: 0 -6px 0 -8px;
+}
+.table-grip--col::after {
+  /* 24px + 下 8px = 32px(上は枠の端なので広げない) */
+  inset: 0 0 -8px;
+}
+
+/* 列の境目:ドラッグで幅を変える */
+.table-resizer {
+  position: absolute;
+  z-index: 1;
+  width: 12px;
+  margin-left: -6px;
+  touch-action: none;
+  cursor: col-resize;
+  opacity: 0;
+  pointer-events: none;
+}
+.table-resizer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 5px;
+  width: 2px;
+  background: var(--accent-ink);
+  opacity: 0;
+}
+/* 最後の列の境目は、表の外にはみ出さない(横スクロールが出ないように) */
+.table-resizer:last-child {
+  width: 6px;
+}
+.table-resizer:hover::before,
+.table-resizer.is-dragging::before {
+  opacity: 1;
+}
+
+/* 丸いつまみ:引っぱって範囲を選ぶ(スマホ・タブレット) */
+.table-knob {
+  position: absolute;
+  z-index: 2;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid var(--paper, #fff);
+  border-radius: 50%;
+  background: var(--accent-ink);
+  touch-action: none;
+  display: none;
+}
+/* 押せる範囲は 36px */
+.table-knob::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+}
+
+/* 並び替えの差し込み線 */
+.table-drop {
+  position: absolute;
+  z-index: 3;
+  background: var(--accent-ink);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.table-drop--row {
+  height: 3px;
+  margin-top: -1.5px;
+}
+.table-drop--col {
+  width: 3px;
+  margin-left: -1.5px;
+}
+
+/* カーソルのある表では、つまみを出す */
+.table-block.is-active .table-grip,
+.table-block.is-active .table-resizer {
+  opacity: 1;
+  pointer-events: auto;
+}
+.table-block.is-active .table-resizer {
+  opacity: 1;
+}
+@media (pointer: coarse) {
+  .table-block.is-active .table-knob:not([hidden]) {
+    display: block;
+  }
+  /* 指では、列の境目を少し広くつかめるようにする */
+  .table-resizer {
+    width: 20px;
+    margin-left: -10px;
+  }
+  .table-resizer:last-child {
+    width: 10px;
+  }
+  .table-resizer::before {
+    left: 9px;
+  }
+  /* 丸いつまみが表の右下からはみ出しても、横スクロールにならない余白 */
+  .table-inner {
+    padding-right: 8px;
+    padding-bottom: 8px;
+  }
+}
+/* マウス:乗せた表にもつまみを出す */
+@media (hover: hover) and (pointer: fine) {
+  .table-block:hover .table-grip,
+  .table-block:hover .table-resizer {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+.table-block.is-readonly .table-grip,
+.table-block.is-readonly .table-resizer,
+.table-block.is-readonly .table-knob {
+  display: none !important;
+}
+/* ドラッグ中は文字が選ばれないように */
+.table-block.is-moving,
+.table-block.is-resizing,
+.table-block.is-ranging {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/*
+ * 右端と下端の「＋」(常に押せる)。ふだんは小さな「＋」だけを薄く出し、
+ * マウスを乗せた表(スマホはカーソルのある表)では枠を出してはっきり見せる。押せる範囲(枠の大きさ)はいつも同じ
+ */
 .table-add {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px dashed var(--paper-edge);
+  border: 1px dashed transparent;
   border-radius: 6px;
   background: transparent;
   color: var(--ink-faint);
   font: inherit;
-  font-size: 18px;
+  font-size: 15px;
   line-height: 1;
+  opacity: 0.55;
   cursor: pointer;
   user-select: none;
+  transition:
+    opacity 0.12s,
+    border-color 0.12s,
+    background-color 0.12s;
 }
-.table-add:hover {
+.table-block.is-active .table-add {
+  opacity: 1;
+  border-color: var(--paper-edge);
+}
+@media (hover: hover) and (pointer: fine) {
+  .table-block:hover .table-add {
+    opacity: 1;
+    border-color: var(--paper-edge);
+  }
+}
+.table-block .table-add:hover {
   border-color: var(--accent-ink);
   color: var(--accent-ink);
   background: var(--accent-soft);
 }
 .table-add--col {
-  grid-column: 2;
+  grid-column: 3;
   grid-row: 1;
+  /* 列のつまみの下から */
+  margin-top: var(--grip-col);
 }
 .table-add--row {
-  grid-column: 1;
+  grid-column: 2;
   grid-row: 2;
 }
 
@@ -274,8 +542,38 @@
 .popover-wide {
   margin-top: 4px;
 }
+.table-menu {
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+}
 .table-menu .swatches {
   max-width: 300px;
+}
+.table-menu .popover-row {
+  flex-wrap: wrap;
+}
+.popover-row button.is-on {
+  border-color: var(--accent-ink);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.table-menu-toggle {
+  justify-content: flex-start;
+  margin-top: 0;
+}
+.table-menu-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--ink-faint);
+  border-radius: 4px;
+}
+.table-menu-toggle.is-on .table-menu-check {
+  border-color: var(--accent-ink);
+  background: var(--accent-ink);
+  color: var(--surface);
 }
 .link-menu-url {
   max-width: min(320px, calc(100vw - 40px));

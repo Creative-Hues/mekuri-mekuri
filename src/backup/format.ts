@@ -1,5 +1,6 @@
 import { SCHEMA_VERSION, type Note, type Page } from '../db/db'
 import { legacyDesignV3, upgradeDesignToV5 } from '../design/defaults'
+import { upgradeTablesToV6 } from '../editor/tableMigrate'
 
 /** バックアップファイルの中の画像(v4〜)。data は base64 */
 export interface BackupImage {
@@ -10,10 +11,13 @@ export interface BackupImage {
   height: number
 }
 
-/** バックアップファイルの中身(スキーマ v5。v4 からはデザインの項目が増えただけで、ファイルの形は同じ) */
-export interface BackupV5 {
+/**
+ * バックアップファイルの中身(スキーマ v6。v4 からはデザインの項目(v5)・表の見出しの持ち方(v6)が変わっただけで、
+ * ファイルの形は同じ)
+ */
+export interface BackupV6 {
   app: 'mekuri-mekuri'
-  schemaVersion: 5
+  schemaVersion: 6
   appVersion: string
   exportedAt: number
   notes: Note[]
@@ -22,7 +26,7 @@ export interface BackupV5 {
 }
 
 /** 今のアプリが扱う形 */
-export type Backup = BackupV5
+export type Backup = BackupV6
 
 export class BackupError extends Error {}
 
@@ -62,6 +66,17 @@ const migrations: Record<number, (data: any) => any> = {
           n && n.design && typeof n.design === 'object' ? { ...n, design: upgradeDesignToV5(n.design) } : n,
         )
       : d.notes,
+  }),
+  // v5 → v6:表の見出しを、見出しセル(tableHeader)から表の設定(headerRow・headerColumn)へ(DB の移し替えと同じ)
+  5: (d) => ({
+    ...d,
+    schemaVersion: 6,
+    pages: Array.isArray(d.pages)
+      ? d.pages.map((p: any) =>
+          // 中身が壊れているページは、下の確認で「壊れている」と知らせるためにそのまま残す
+          p && p.content && typeof p.content === 'object' ? { ...p, content: upgradeTablesToV6(p.content) } : p,
+        )
+      : d.pages,
   }),
 }
 

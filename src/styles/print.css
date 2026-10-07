@@ -78,6 +78,17 @@
 .print-root .table-add {
   display: none !important;
 }
+/* 表のつまみの場所は、印刷ではとらない */
+.print-root .table-block {
+  --grip: 0px;
+  --grip-col: 0px;
+  column-gap: 0;
+}
+.print-root .table-block td,
+.print-root .table-block th {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
 .print-root .toggle-btn {
   visibility: hidden;
 }

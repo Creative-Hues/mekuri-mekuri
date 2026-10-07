@@ -1,12 +1,13 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type { JSONContent } from '@tiptap/core'
 import { legacyDesignV3, upgradeDesignToV5 } from '../design/defaults'
+import { upgradeTablesToV6 } from '../editor/tableMigrate'
 import type { BorderWidthName } from '../design/palette'
 import type { BodyFontName, CoverTextColorName, PatternScaleName } from '../design/cover'
 
 // データ構造のバージョン。変えるときは docs/data-model.md も更新し、
 // 下の db.version(...) に新しい版と upgrade(マイグレーション)を追加する
-export const SCHEMA_VERSION = 5
+export const SCHEMA_VERSION = 6
 
 /** ノートのデザイン(v3〜)。色・種類はすべて名前で保存する(src/design/) */
 export interface NoteDesign {
@@ -184,6 +185,26 @@ db.version(5)
       .toCollection()
       .modify((note: Partial<Note>) => {
         note.design = upgradeDesignToV5(note.design)
+      }),
+  )
+
+// v6(アプリ 1.3.0〜):表の見出しを「見出しセル(tableHeader)」から表の設定(headerRow・headerColumn)に移した。
+// ゴミ箱のページも含め、表のあるページだけ書き換える。インデックスは変わらない。更新日時(updatedAt)は変えない
+db.version(6)
+  .stores({
+    notes: 'id, order',
+    pages: 'id, noteId, [noteId+order]',
+    images: 'id',
+    meta: 'key',
+  })
+  .upgrade((tx) =>
+    tx
+      .table('pages')
+      .toCollection()
+      .modify((page: Partial<Page>) => {
+        if (!page.content) return
+        const next = upgradeTablesToV6(page.content)
+        if (next !== page.content) page.content = next
       }),
   )
 

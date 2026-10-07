@@ -29,7 +29,8 @@ import { toolbarButton, type ToolbarButtonId } from './noteButtons'
 import { useKeyboardOpen } from '../../layout/useKeyboardInset'
 import type { NoteSession } from './session'
 import { useDialog } from '../../components/Dialog'
-import { CELL_MENU_EVENT, insertTable, isInTable, type CellMenuDetail } from '../../editor/table'
+import { insertTable, isInTable } from '../../editor/table'
+import { openCellMenuAtSelection } from './TableMenu'
 import { insertImageFiles } from '../../editor/image'
 import { LINK_DIALOG_EVENT, type LinkDialogDetail } from '../../editor/webLink'
 
@@ -98,22 +99,9 @@ export function Toolbar({
     })
   }
 
-  /** カーソルのあるセルのメニューを出す(長押しができないときのため) */
+  /** カーソル(または選んだ範囲)のセルのメニューを出す */
   const openCellMenu = () => {
-    if (!editor || editor.isDestroyed) return
-    const { state, view } = editor
-    const $from = state.selection.$from
-    for (let d = $from.depth; d > 0; d--) {
-      const n = $from.node(d)
-      if (n.type.name === 'tableCell' || n.type.name === 'tableHeader') {
-        const cellPos = $from.before(d)
-        const r = view.coordsAtPos($from.pos)
-        window.dispatchEvent(
-          new CustomEvent<CellMenuDetail>(CELL_MENU_EVENT, { detail: { editor, cellPos, x: r.left, y: r.bottom } }),
-        )
-        return
-      }
-    }
+    if (editor && !editor.isDestroyed) openCellMenuAtSelection(editor)
   }
 
   const headingActive = (level: 1 | 2 | 3) =>

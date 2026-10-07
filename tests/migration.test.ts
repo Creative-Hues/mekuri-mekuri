@@ -27,7 +27,7 @@ describe('データ移行 v1 → 最新', () => {
     // 今のアプリの DB で開く
     const { db, SCHEMA_VERSION } = await import('../src/db/db')
     const { getPages } = await import('../src/db/repo')
-    expect(SCHEMA_VERSION).toBe(5)
+    expect(SCHEMA_VERSION).toBe(6)
 
     const note = await db.notes.get('n1')
     const { legacyDesign } = await import('../src/design/defaults')
@@ -46,7 +46,7 @@ describe('データ移行 v1 → 最新', () => {
       expect(p.updatedAt).toBe(2)
     }
     expect((await db.meta.get('lastBackupAt'))?.value).toBe(123)
-    expect(db.verno).toBe(5)
+    expect(db.verno).toBe(6)
     db.close()
   })
 })

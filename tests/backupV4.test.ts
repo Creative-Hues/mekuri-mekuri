@@ -52,13 +52,13 @@ describe('base64 の変換', () => {
 })
 
 describe('v4 のバックアップ', () => {
-  it('v3 のファイルは画像なしの最新の形(v5)になる', () => {
+  it('v3 のファイルは画像なしの最新の形(v6)になる', () => {
     const file = JSON.stringify({
       app: 'mekuri-mekuri', schemaVersion: 3, appVersion: '0.4.0', exportedAt: 1,
       notes: [note('n1', 'a')], pages: [page('p1', 'n1', { type: 'doc', content: [] })],
     })
     const backup = parseBackup(file)
-    expect(backup.schemaVersion).toBe(5)
+    expect(backup.schemaVersion).toBe(6)
     expect(backup.images).toEqual([])
   })
 
@@ -114,7 +114,7 @@ describe('v5 のバックアップ(本文の書体・サブ色・柄の大きさ
 
   it('v4 のファイルは v5 に変換される:なくした柄は無地、本文は表紙と同じ、なじむ色・中', () => {
     const backup = parseBackup(v4DesignFile())
-    expect(backup.schemaVersion).toBe(5)
+    expect(backup.schemaVersion).toBe(6)
     const [a, b] = backup.notes
     expect(a.design.cover).toEqual({
       pattern: 'plain', color: 'slate', layout: 'topLeft', font: 'mincho', subColor: 'auto', patternScale: 'medium', textColor: 'auto',

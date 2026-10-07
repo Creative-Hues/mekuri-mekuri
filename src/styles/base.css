@@ -76,6 +76,8 @@
   --mk-blue: #d3e5f5;
   --mk-purple: #e4d9f2;
   --mk-gray: #e6e4df;
+  /* 表の見出しの行・列(紙の色に重ねる薄い色) */
+  --table-head: rgb(43 51 64 / 0.07);
 }
 
 /* ---- ダークモード ---- */
@@ -131,6 +133,7 @@
   --mk-blue: #273f57;
   --mk-purple: #43345a;
   --mk-gray: #45433f;
+  --table-head: rgb(255 255 255 / 0.08);
 }
 
 /*
