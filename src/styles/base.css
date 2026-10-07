@@ -1,6 +1,38 @@
-/* 色・大きさの決まりごと(フェーズ3のダークモードでは、ここを切り替える) */
+/*
+ * 色・大きさの決まりごと。
+ * ダークモードは <html data-theme="dark">(src/theme/theme.ts)で切り替える。
+ *
+ * 「紙の上の色」(文字・線・文字色・マーカー)は、紙の明るさに合わせて .tone-light / .tone-dark でも切り替える。
+ * 背景色を選んだノートは、ダークモードでもその色のまま表示するため(例:ダークモードで白い紙 → 文字は濃い色)
+ */
 :root {
+  --accent: #c0783a;
+  --danger: #c2413b;
+  --shadow: 0 1px 2px rgb(60 45 20 / 0.06), 0 6px 18px rgb(60 45 20 / 0.08);
+  --backdrop: rgb(40 30 20 / 0.3);
+  --shelf-board: #d9c7a8;
+  --radius: 12px;
+  --font: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP',
+    'Yu Gothic UI', Meiryo, sans-serif;
+  /* 付箋の色(付箋は明るい色の紙なので、文字は .tone-light で濃い色になる) */
+  --st-yellow: #fff3a8;
+  --st-pink: #ffd9e6;
+  --st-orange: #ffdcb5;
+  --st-green: #d4f0cf;
+  --st-blue: #d3e8fb;
+  --st-purple: #e6dcfa;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  color-scheme: light;
+}
+
+/* 紙の上の色:明るい紙 */
+:root,
+.tone-light {
   --bg: #f6f1e7;
+  --accent-soft: #f3e3d1;
   --surface: #fffdf8;
   --paper: #fffefb;
   --paper-edge: #e8dfcf;
@@ -8,14 +40,7 @@
   --ink-soft: #6b7280;
   --ink-faint: #a8a29e;
   --line: #e6dccb;
-  --accent: #c0783a;
-  --accent-soft: #f3e3d1;
-  --danger: #c2413b;
-  --shadow: 0 1px 2px rgb(60 45 20 / 0.06), 0 6px 18px rgb(60 45 20 / 0.08);
-  --radius: 12px;
-  --font: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP',
-    'Yu Gothic UI', Meiryo, sans-serif;
-  /* 文字色(palette.ts の色名と対応。ダークモードではここを差し替える) */
+  /* 文字色(palette.ts の色名と対応) */
   --tc-gray: #787774;
   --tc-brown: #9f6b53;
   --tc-red: #d44c47;
@@ -33,18 +58,59 @@
   --mk-blue: #d3e5f5;
   --mk-purple: #e4d9f2;
   --mk-gray: #e6e4df;
-  /* 付箋の色 */
-  --st-yellow: #fff3a8;
-  --st-pink: #ffd9e6;
-  --st-orange: #ffdcb5;
-  --st-green: #d4f0cf;
-  --st-blue: #d3e8fb;
-  --st-purple: #e6dcfa;
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-left: env(safe-area-inset-left, 0px);
-  --safe-right: env(safe-area-inset-right, 0px);
-  color-scheme: light;
+}
+
+/* ---- ダークモード ---- */
+:root[data-theme='dark'] {
+  --accent: #d9925a;
+  --danger: #e06a62;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 18px rgb(0 0 0 / 0.35);
+  --backdrop: rgb(0 0 0 / 0.5);
+  --shelf-board: #3d3328;
+  /* 付箋は少し落ち着いた色に(文字は濃い色のまま) */
+  --st-yellow: #e9dc94;
+  --st-pink: #e8c3d0;
+  --st-orange: #e8c7a3;
+  --st-green: #bfd8ba;
+  --st-blue: #bed2e4;
+  --st-purple: #cfc6e2;
+  color-scheme: dark;
+}
+
+/* 紙の上の色:暗い紙 */
+:root[data-theme='dark'],
+.tone-dark {
+  --bg: #1b1a18;
+  --accent-soft: #4a3626;
+  --surface: #252320;
+  --paper: #2a2825;
+  --paper-edge: #3a3631;
+  --ink: #e8e4dc;
+  --ink-soft: #a8a29a;
+  --ink-faint: #6f6a63;
+  --line: #3a3631;
+  --tc-gray: #9b9a97;
+  --tc-brown: #c49a82;
+  --tc-red: #ff7369;
+  --tc-orange: #ffa344;
+  --tc-yellow: #e9c25a;
+  --tc-green: #6fbf8e;
+  --tc-blue: #5fa8e0;
+  --tc-purple: #b98ee0;
+  --mk-yellow: #5c4f1c;
+  --mk-orange: #5f3e22;
+  --mk-pink: #5c2f43;
+  --mk-red: #5e2b28;
+  --mk-green: #2c4a33;
+  --mk-blue: #273f57;
+  --mk-purple: #43345a;
+  --mk-gray: #45433f;
+}
+
+/* 紙の明るさを切り替えた所では、受け継いだ文字の色も紙に合わせ直す */
+.tone-light,
+.tone-dark {
+  color: var(--ink);
 }
 
 *,
@@ -194,12 +260,33 @@ button {
   flex: 1;
 }
 .sidebar-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 7px 10px;
   border-radius: 8px;
+}
+.sidebar-item-title {
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.sidebar-star {
+  color: var(--accent);
+}
+.sidebar-trash {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--ink-soft);
+}
+.sidebar-trash:hover {
+  background: var(--bg);
 }
 .sidebar-item:hover {
   background: var(--bg);
@@ -217,7 +304,7 @@ button {
 .drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgb(40 30 20 / 0.25);
+  background: var(--backdrop);
   z-index: 30;
 }
 .drawer {
@@ -241,7 +328,7 @@ button {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgb(40 30 20 / 0.3);
+  background: var(--backdrop);
 }
 .dialog {
   width: min(420px, 100%);

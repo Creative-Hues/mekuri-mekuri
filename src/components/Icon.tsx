@@ -31,11 +31,16 @@ const paths: Record<string, string> = {
   toc: 'M3.5 5 H5 M8 5 H16.5 M5.5 10 H7 M10 10 H16.5 M5.5 15 H7 M10 15 H16.5',
   dots: 'M4.6 10 H5.4 M9.6 10 H10.4 M14.6 10 H15.4',
   check: 'M4.5 10.5 L8.5 14.5 L15.5 6',
+  star: 'M10 2.8 L12.2 7.3 L17.1 8 L13.5 11.4 L14.4 16.3 L10 14 L5.6 16.3 L6.5 11.4 L2.9 8 L7.8 7.3 Z',
+  restore: 'M4 10 A6 6 0 1 0 6 5.5 M3.5 3 V6.5 H7',
+  palette:
+    'M10 3 A7 7 0 1 0 10 17 C11.3 17 11.6 15.9 11 15 C10.4 14.1 10.9 13 12.1 13 H13.8 A3.2 3.2 0 0 0 17 9.8 C17 6 13.9 3 10 3 Z M6.6 9 H6.7 M8.6 6.2 H8.7 M12 6.2 H12.1',
 }
 
 export type IconName = keyof typeof paths
 
-export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
+/** filled:中を塗りつぶす(お気に入りの星など) */
+export function Icon({ name, size = 20, filled = false }: { name: IconName; size?: number; filled?: boolean }) {
   return (
     <svg
       className="icon"
@@ -43,7 +48,7 @@ export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
       width={size}
       height={size}
       aria-hidden="true"
-      fill="none"
+      fill={filled ? 'currentColor' : 'none'}
       stroke="currentColor"
       strokeWidth={1.6}
       strokeLinecap="round"

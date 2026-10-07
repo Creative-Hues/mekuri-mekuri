@@ -1,7 +1,21 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../../db/db'
-import { deleteNote, deletePage, getPages, insertPage, renameNote, reorderPages } from '../../db/repo'
+import { db, type NoteDesign } from '../../db/db'
+import {
+  deletePage,
+  getPages,
+  insertPage,
+  renameNote,
+  reorderPages,
+  setFavorite,
+  setNoteDesign,
+  trashNote,
+  trashPage,
+} from '../../db/repo'
+import { normalizeDesign } from '../../design/defaults'
+import { borderColor, borderWidth, paperColor } from '../../design/palette'
+import { paperTone, useTheme } from '../../theme/theme'
+import { shelfHistory } from '../../history/shelfHistory'
 import { useLayoutMode } from '../../layout/useLayoutMode'
 import { useKeyboardOpen } from '../../layout/useKeyboardInset'
 import { matchShortcut, withShortcut } from '../../editor/shortcuts'
@@ -17,6 +31,7 @@ import { PageContent } from './PageEditor'
 import { Toolbar } from './Toolbar'
 import { PageList } from './PageList'
 import { TocPanel } from './TocPanel'
+import { DesignPanel } from './DesignPanel'
 
 /** 表示中のページの前後、これだけの範囲はエディタを作っておく(スワイプ先がすぐ表示されるように) */
 const MOUNT_BEHIND = 2
@@ -42,6 +57,9 @@ export function NoteView({
   const dialog = useDialog()
   const [pageListOpen, setPageListOpen] = useState(false)
   const [tocOpen, setTocOpen] = useState(false)
+  const [designOpen, setDesignOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const theme = useTheme()
   const note = useLiveQuery(() => db.notes.get(noteId), [noteId], null)
   const pages = useLiveQuery(() => getPages(noteId), [noteId])
 
@@ -142,12 +160,21 @@ export function NoteView({
           sessionRef.current?.forget(pageId)
           return removed?.page ?? null
         },
+        trashPage: async (pageId) => {
+          await sessionRef.current?.flush(pageId)
+          const trashed = await trashPage(pageId)
+          sessionRef.current?.forget(pageId)
+          return trashed?.page ?? null
+        },
         restorePage: async (page, index) => {
           await insertPage(noteId, index, page)
           showPageRef.current(page.id)
         },
         rename: async (title) => {
           await renameNote(noteId, title)
+        },
+        setDesign: async (design) => {
+          await setNoteDesign(noteId, design)
         },
         reorderPages: async (pageIds) => {
           await reorderPages(noteId, pageIds)
@@ -258,7 +285,7 @@ export function NoteView({
     showPage(page.id, true)
   }
 
-  /** ページを削除する(ページ一覧から) */
+  /** ページをゴミ箱に入れる(ページ一覧から) */
   const removePage = async (pageId: string) => {
     const list = pagesRef.current ?? []
     if (list.length <= 1) {
@@ -270,13 +297,13 @@ export function NoteView({
     const number = list.indexOf(target) + 1
     const ok = await dialog.confirm({
       title: 'ページを削除',
-      message: `${number}ページ目を削除しますか？(削除しても「元に戻す」で戻せます)`,
-      okLabel: '削除する',
+      message: `${number}ページ目をゴミ箱に移しますか？(「元に戻す」や、30日以内ならゴミ箱からも戻せます)`,
+      okLabel: 'ゴミ箱に移す',
       danger: true,
     })
     if (!ok) return
     await session.flush(target.id)
-    const removed = await deletePage(target.id)
+    const removed = await trashPage(target.id)
     session.forget(target.id)
     if (removed) session.history.recordDeletePage(removed.page, removed.index)
     if (session.activePageId === target.id) session.activePageId = null
@@ -402,33 +429,61 @@ export function NoteView({
     }
   }
 
-  // ---- ノートの削除 ----
+  // ---- ノートの削除(ゴミ箱へ)・お気に入り・デザイン ----
 
   const removeNote = async () => {
+    setMenuOpen(false)
     const ok = await dialog.confirm({
       title: 'ノートを削除',
-      message: `「${note?.title || '無題のノート'}」を削除しますか？この操作は取り消せません。`,
-      okLabel: '削除する',
+      message: `「${note?.title || '無題のノート'}」をゴミ箱に移しますか？30日以内なら、本棚のゴミ箱から元に戻せます。`,
+      okLabel: 'ゴミ箱に移す',
       danger: true,
     })
     if (!ok) return
     await session.flushAll()
-    await deleteNote(noteId)
+    await trashNote(noteId)
     navigate(href.shelf())
+  }
+
+  const toggleFavorite = async () => {
+    if (!note) return
+    setMenuOpen(false)
+    await setFavorite(noteId, !note.favorite)
+    shelfHistory.record({ kind: 'favorite', noteId, before: note.favorite, after: !note.favorite })
+  }
+
+  const design = normalizeDesign(note?.design)
+  const changeDesign = async (next: NoteDesign) => {
+    const before = design
+    await setNoteDesign(noteId, next)
+    session.history.recordDesign(before, next)
   }
 
   // ---- 表示 ----
 
-  if (note === undefined) {
+  if (note === undefined || note?.deletedAt != null) {
     return (
       <div className="empty-state">
-        <p>ノートが見つかりません。</p>
-        <a className="btn btn--primary" href={href.shelf()}>
-          本棚へ
+        <p>{note ? 'このノートはゴミ箱にあります。' : 'ノートが見つかりません。'}</p>
+        <a className="btn btn--primary" href={note ? href.trash() : href.shelf()}>
+          {note ? 'ゴミ箱へ' : '本棚へ'}
         </a>
       </div>
     )
   }
+
+  // 紙の色と縁。背景色を選んだノートは、ダークモードでもその色のまま(文字の色は紙の明るさに合わせる)
+  const paper = paperColor(design.paper)
+  const paperClass = paper ? ` tone-${paperTone(design.paper, theme)}` : ''
+  const paperStyle = paper ? ({ '--paper': paper.hex } as CSSProperties) : undefined
+  const border = borderWidth(design.border.width)
+  const hasBorder = !!border && border.px > 0
+  const viewStyle = hasBorder
+    ? ({
+        '--note-border-width': `${border.px}px`,
+        '--note-border-color': borderColor(design.border.color)?.hex,
+      } as CSSProperties)
+    : undefined
 
   const lastIndex = pageCount // 「ページを追加」の枠
   const spreadNumber = Math.floor(current / perView) + 1
@@ -442,7 +497,8 @@ export function NoteView({
 
   return (
     <div
-      className={`note-view${layout.spread ? ' is-spread' : ' is-single'}${layout.toolbarTop ? '' : ' has-bottom-toolbar'}${keyboardOpen ? ' is-keyboard' : ''}`}
+      className={`note-view${layout.spread ? ' is-spread' : ' is-single'}${layout.toolbarTop ? '' : ' has-bottom-toolbar'}${keyboardOpen ? ' is-keyboard' : ''}${hasBorder ? ' has-note-border' : ''}`}
+      style={viewStyle}
     >
       <header className="note-header">
         {layout.sidebar !== 'fixed' && (
@@ -486,10 +542,35 @@ export function NoteView({
         >
           <Icon name="pages" />
         </button>
-        <button className="icon-btn" onClick={() => void removeNote()} aria-label="ノートを削除" title="ノートを削除">
-          <Icon name="trash" />
+        <button className="icon-btn" onClick={() => setDesignOpen(true)} aria-label="デザイン" title="デザイン">
+          <Icon name="palette" />
+        </button>
+        <button
+          className="icon-btn"
+          onClick={() => setMenuOpen((o) => !o)}
+          aria-label="ノートのメニュー"
+          aria-expanded={menuOpen}
+          title="ノートのメニュー"
+        >
+          <Icon name="dots" />
         </button>
       </header>
+
+      {menuOpen && (
+        <>
+          <div className="note-menu-backdrop" onClick={() => setMenuOpen(false)} />
+          <div className="note-menu" role="menu">
+            <button role="menuitem" className={note?.favorite ? 'is-on' : ''} onClick={() => void toggleFavorite()}>
+              <Icon name="star" filled={!!note?.favorite} />
+              {note?.favorite ? 'お気に入りから外す' : 'お気に入りにする'}
+            </button>
+            <button role="menuitem" className="is-danger" onClick={() => void removeNote()}>
+              <Icon name="trash" />
+              ノートをゴミ箱に移す
+            </button>
+          </div>
+        </>
+      )}
 
       {layout.toolbarTop && (
         <Toolbar session={session} top onAddSticky={addSticky} onMoveToPage={() => void moveSelectedToPage()} />
@@ -517,7 +598,7 @@ export function NoteView({
                 className={`page-slot${perView === 2 ? (i % 2 === 0 ? ' slot-left' : ' slot-right') : ''}`}
                 aria-label={`${i + 1}ページ目`}
               >
-                <div className="paper">
+                <div className={`paper${paperClass}`} style={paperStyle}>
                   <div className="paper-scroll">
                     {mounted ? (
                       <PageContent
@@ -579,6 +660,16 @@ export function NoteView({
           side={layout.toolbarTop}
           onClose={() => setTocOpen(false)}
           onJump={jumpToHeading}
+        />
+      )}
+
+      {designOpen && note && (
+        <DesignPanel
+          title={note.title}
+          design={design}
+          side={layout.toolbarTop}
+          onChange={(next) => void changeDesign(next)}
+          onClose={() => setDesignOpen(false)}
         />
       )}
 

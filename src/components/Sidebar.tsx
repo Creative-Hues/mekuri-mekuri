@@ -1,13 +1,15 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../db/db'
-import { createNote } from '../db/repo'
+import { createNote, getShelfNotes } from '../db/repo'
+import { fullOrder, shelfSections } from '../shelf/order'
 import { href, navigate } from '../router'
 import { APP_VERSION } from '../version'
 import { Icon } from './Icon'
 
-/** ノート一覧(PCは常に表示、タブレットは開閉式) */
+/** ノート一覧(PCは常に表示、タブレットは開閉式)。並びは本棚と同じ(お気に入りが先) */
 export function Sidebar({ currentId, onNavigate }: { currentId?: string; onNavigate?: () => void }) {
-  const notes = useLiveQuery(() => db.notes.orderBy('order').toArray(), [])
+  const notes = useLiveQuery(getShelfNotes, [])
+  const byId = new Map((notes ?? []).map((n) => [n.id, n]))
+  const ordered = fullOrder(shelfSections(notes ?? [])).map((id) => byId.get(id)!)
 
   const create = async () => {
     const note = await createNote()
@@ -30,7 +32,7 @@ export function Sidebar({ currentId, onNavigate }: { currentId?: string; onNavig
         新しいノート
       </button>
       <ul className="sidebar-list">
-        {notes?.map((note) => (
+        {ordered.map((note) => (
           <li key={note.id}>
             <a
               className={`sidebar-item${note.id === currentId ? ' is-current' : ''}`}
@@ -38,11 +40,20 @@ export function Sidebar({ currentId, onNavigate }: { currentId?: string; onNavig
               onClick={onNavigate}
               aria-current={note.id === currentId ? 'page' : undefined}
             >
-              {note.title || '無題のノート'}
+              <span className="sidebar-item-title">{note.title || '無題のノート'}</span>
+              {note.favorite && (
+                <span className="sidebar-star" aria-label="お気に入り">
+                  <Icon name="star" size={14} filled />
+                </span>
+              )}
             </a>
           </li>
         ))}
       </ul>
+      <a className="sidebar-trash" href={href.trash()} onClick={onNavigate}>
+        <Icon name="trash" size={18} />
+        ゴミ箱
+      </a>
       <div className="sidebar-version">v{APP_VERSION}</div>
     </nav>
   )

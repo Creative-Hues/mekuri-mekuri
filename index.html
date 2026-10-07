@@ -12,6 +12,14 @@
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
     <title>めくりめくり</title>
+    <script>
+      // ダークモード:画面が一瞬白くならないよう、描画の前にテーマを決める(src/theme/theme.ts と同じ判定)
+      try {
+        var p = localStorage.getItem('mekuri-theme')
+        var dark = p === 'dark' || (p !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

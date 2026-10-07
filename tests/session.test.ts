@@ -42,8 +42,10 @@ async function setup() {
   const session = new NoteSession(note.id, {
     showPage: (id) => shown.push(id),
     removePage: async () => null,
+    trashPage: async () => null,
     restorePage: async () => {},
     rename: async () => {},
+    setDesign: async () => {},
     reorderPages: (ids) => reorderPages(note.id, ids),
   })
   session.syncPages(pages)

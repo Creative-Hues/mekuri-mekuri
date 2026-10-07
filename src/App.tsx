@@ -4,6 +4,7 @@ import { useRoute } from './router'
 import { useLayoutMode } from './layout/useLayoutMode'
 import { Bookshelf } from './screens/Bookshelf'
 import { Settings } from './screens/Settings'
+import { Trash } from './screens/Trash'
 import { NoteView } from './screens/note/NoteView'
 import { Sidebar } from './components/Sidebar'
 import { DialogProvider, useDialog } from './components/Dialog'
@@ -39,6 +40,8 @@ function Shell() {
     )
   } else if (route.name === 'settings') {
     screen = <Settings />
+  } else if (route.name === 'trash') {
+    screen = <Trash />
   } else {
     screen = <Bookshelf />
   }

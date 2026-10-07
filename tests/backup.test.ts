@@ -3,6 +3,7 @@ import { db } from '../src/db/db'
 import { createNote, getPages } from '../src/db/repo'
 import { BackupError, parseBackup } from '../src/backup/format'
 import { importAppend, importReplace } from '../src/backup/import'
+import { legacyDesign } from '../src/design/defaults'
 
 // バックアップファイルの読み込み(特に v1 = アプリ 0.1.0 で書き出したファイル)のテスト
 
@@ -29,14 +30,16 @@ function v1File() {
 }
 
 describe('バックアップの読み取り(parseBackup)', () => {
-  it('v1 のファイルは v2 の形に変換される(付箋は空)', () => {
+  it('v1 のファイルは今の形(v3)に変換される(付箋は空・ゴミ箱でない・今までの見た目)', () => {
     const backup = parseBackup(v1File())
-    expect(backup.schemaVersion).toBe(2)
+    expect(backup.schemaVersion).toBe(3)
+    expect(backup.notes[0]).toMatchObject({ favorite: false, deletedAt: null, design: legacyDesign() })
     expect(backup.notes).toHaveLength(1)
     expect(backup.pages).toHaveLength(2)
     for (const p of backup.pages) {
       expect(p.stickies).toEqual([])
       expect(p.content).toEqual(content)
+      expect(p.deletedAt).toBeNull()
     }
   })
 
@@ -122,5 +125,81 @@ describe('v1 のバックアップを読み込む', () => {
     expect(page.stickies).toHaveLength(1)
     expect(page.stickies[0].id).not.toBe('s1')
     expect(page.stickies[0].color).toBe('pink')
+  })
+})
+
+/** 今のアプリ(v3)が書き出す形のファイル */
+function v3File(over: { notes?: object[]; pages?: object[] } = {}) {
+  return JSON.stringify({
+    app: 'mekuri-mekuri', schemaVersion: 3, appVersion: '0.4.0', exportedAt: 1,
+    notes: over.notes ?? [
+      {
+        id: 'n1', title: 'お気に入り', order: 0, favorite: true, deletedAt: null, createdAt: 1, updatedAt: 1,
+        design: {
+          paper: 'mint', border: { color: 'blue', width: 'medium' },
+          cover: { pattern: 'dots', color: 'navy', layout: 'label', font: 'mincho' },
+        },
+      },
+      { id: 'n2', title: 'ゴミ箱のノート', order: 1, favorite: false, deletedAt: 500, createdAt: 1, updatedAt: 1, design: legacyDesign() },
+    ],
+    pages: over.pages ?? [
+      { id: 'p1', noteId: 'n1', order: 0, content, stickies: [], deletedAt: null, deletedIndex: null, createdAt: 1, updatedAt: 1 },
+      { id: 'p2', noteId: 'n1', order: 1, content, stickies: [], deletedAt: 700, deletedIndex: 1, createdAt: 1, updatedAt: 1 },
+      { id: 'p3', noteId: 'n2', order: 0, content, stickies: [], deletedAt: null, deletedIndex: null, createdAt: 1, updatedAt: 1 },
+    ],
+  })
+}
+
+describe('v3 のバックアップ(お気に入り・ゴミ箱・デザイン)', () => {
+  it('v2 のファイルは v3 に変換され、今までと同じ見た目になる', () => {
+    const file = JSON.stringify({
+      app: 'mekuri-mekuri', schemaVersion: 2, appVersion: '0.3.0', exportedAt: 1,
+      notes: [{ id: 'n1', title: 'a', order: 0, createdAt: 1, updatedAt: 1 }],
+      pages: [{ id: 'p1', noteId: 'n1', order: 0, content, stickies: [], createdAt: 1, updatedAt: 1 }],
+    })
+    const backup = parseBackup(file)
+    expect(backup.schemaVersion).toBe(3)
+    expect(backup.notes[0]).toMatchObject({ favorite: false, deletedAt: null, design: legacyDesign() })
+    expect(backup.pages[0]).toMatchObject({ deletedAt: null, deletedIndex: null, stickies: [] })
+  })
+
+  it('v3 のファイルは、お気に入り・ゴミ箱・デザインもそのまま読める', () => {
+    const backup = parseBackup(v3File())
+    expect(backup.notes[0].favorite).toBe(true)
+    expect(backup.notes[0].design.cover).toEqual({ pattern: 'dots', color: 'navy', layout: 'label', font: 'mincho' })
+    expect(backup.notes[1].deletedAt).toBe(500)
+    expect(backup.pages[1]).toMatchObject({ deletedAt: 700, deletedIndex: 1 })
+  })
+
+  it('デザインが壊れたノートの入ったファイルは読み込まない', () => {
+    const file = v3File({
+      notes: [{ id: 'n1', title: 'a', order: 0, favorite: false, deletedAt: null, design: 'abc' }],
+      pages: [],
+    })
+    expect(() => parseBackup(file)).toThrow(/デザインの情報が壊れています/)
+  })
+
+  it('お気に入りが真偽値でないファイルは読み込まない', () => {
+    const file = v3File({
+      notes: [{ id: 'n1', title: 'a', order: 0, favorite: 'yes', deletedAt: null, design: legacyDesign() }],
+      pages: [],
+    })
+    expect(() => parseBackup(file)).toThrow(/ノートの情報が壊れています/)
+  })
+
+  it('置き換える:ゴミ箱のノート・ページもゴミ箱のまま戻る', async () => {
+    await importReplace(parseBackup(v3File()))
+    expect((await db.notes.get('n2'))?.deletedAt).toBe(500)
+    expect((await getPages('n1')).map((p) => p.id)).toEqual(['p1'])
+    expect((await db.pages.get('p2'))?.deletedAt).toBe(700)
+  })
+
+  it('追加する:お気に入りとデザインを引き継ぐ', async () => {
+    await importAppend(parseBackup(v3File()))
+    const added = (await db.notes.toArray()).find((n) => n.title === 'お気に入り')!
+    expect(added.id).not.toBe('n1')
+    expect(added.favorite).toBe(true)
+    expect(added.design.paper).toBe('mint')
+    expect(await getPages(added.id)).toHaveLength(1) // ゴミ箱のページは並ばない
   })
 })

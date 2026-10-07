@@ -1,9 +1,10 @@
 import { SCHEMA_VERSION, type Note, type Page } from '../db/db'
+import { legacyDesign } from '../design/defaults'
 
-/** バックアップファイルの中身(スキーマ v2) */
-export interface BackupV2 {
+/** バックアップファイルの中身(スキーマ v3) */
+export interface BackupV3 {
   app: 'mekuri-mekuri'
-  schemaVersion: 2
+  schemaVersion: 3
   appVersion: string
   exportedAt: number
   notes: Note[]
@@ -11,7 +12,7 @@ export interface BackupV2 {
 }
 
 /** 今のアプリが扱う形 */
-export type Backup = BackupV2
+export type Backup = BackupV3
 
 export class BackupError extends Error {}
 
@@ -28,7 +29,20 @@ const migrations: Record<number, (data: any) => any> = {
       ? d.pages.map((p: any) => ({ ...p, stickies: Array.isArray(p?.stickies) ? p.stickies : [] }))
       : d.pages,
   }),
+  // v2 → v3:ノートに お気に入り・ゴミ箱・デザイン、ページに ゴミ箱 を追加(今までと同じ見た目にする)
+  2: (d) => ({
+    ...d,
+    schemaVersion: 3,
+    notes: Array.isArray(d.notes)
+      ? d.notes.map((n: any) => ({ ...n, favorite: false, deletedAt: null, design: legacyDesign() }))
+      : d.notes,
+    pages: Array.isArray(d.pages)
+      ? d.pages.map((p: any) => ({ ...p, deletedAt: null, deletedIndex: null }))
+      : d.pages,
+  }),
 }
+
+const isTime = (v: unknown) => v === null || (typeof v === 'number' && Number.isFinite(v))
 
 export function parseBackup(text: string): Backup {
   let data: any
@@ -55,9 +69,17 @@ export function parseBackup(text: string): Backup {
   }
   for (const n of data.notes) {
     if (typeof n?.id !== 'string' || typeof n.title !== 'string') throw new BackupError('ノートの情報が壊れています。')
+    if (typeof n.favorite !== 'boolean' || !isTime(n.deletedAt)) throw new BackupError('ノートの情報が壊れています。')
+    // デザインは、知らない色名などがあっても表示のときに既定値になるので、形だけ確かめる
+    if (!n.design || typeof n.design !== 'object' || !n.design.cover || !n.design.border) {
+      throw new BackupError('ノートのデザインの情報が壊れています。')
+    }
   }
   for (const p of data.pages) {
     if (typeof p?.id !== 'string' || typeof p.noteId !== 'string' || typeof p.content !== 'object') {
+      throw new BackupError('ページの情報が壊れています。')
+    }
+    if (!isTime(p.deletedAt) || !(p.deletedIndex === null || typeof p.deletedIndex === 'number')) {
       throw new BackupError('ページの情報が壊れています。')
     }
     if (!Array.isArray(p.stickies)) throw new BackupError('付箋の情報が壊れています。')

@@ -11,6 +11,7 @@ import { APP_VERSION } from '../version'
 import { Icon } from '../components/Icon'
 import { useDialog } from '../components/Dialog'
 import { SHORTCUTS, shortcutText } from '../editor/shortcuts'
+import { THEME_OPTIONS, setThemePref, useThemePref } from '../theme/theme'
 
 function formatDate(ms: number): string {
   const d = new Date(ms)
@@ -22,6 +23,7 @@ export function Settings() {
   const fileRef = useRef<HTMLInputElement>(null)
   const lastBackup = useLiveQuery(async () => (await db.meta.get(META.lastBackupAt))?.value as number | undefined, [])
   const [persisted, setPersisted] = useState<boolean | null>(null)
+  const themePref = useThemePref()
 
   useEffect(() => {
     void isPersisted().then(setPersisted)
@@ -93,6 +95,26 @@ export function Settings() {
         </a>
         <h1>設定</h1>
       </header>
+
+      <section className="settings-section">
+        <h2>表示</h2>
+        <p className="settings-note">
+          ダークモードにしても、背景色を選んだノートの紙はその色のままです(文字の色は読みやすく調整されます)。
+        </p>
+        <div className="segmented" role="radiogroup" aria-label="画面の明るさ">
+          {THEME_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              role="radio"
+              aria-checked={themePref === o.value}
+              className={`segmented-btn${themePref === o.value ? ' is-selected' : ''}`}
+              onClick={() => setThemePref(o.value)}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="settings-section">
         <h2>バックアップ</h2>

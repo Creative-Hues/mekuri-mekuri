@@ -2,7 +2,7 @@
 
 ノートのデータはすべて端末内の IndexedDB に保存する。外部サーバーには送らない。
 
-- 現在のスキーマバージョン:**2**(`src/db/db.ts` の `SCHEMA_VERSION`)
+- 現在のスキーマバージョン:**3**(`src/db/db.ts` の `SCHEMA_VERSION`)
 - DB名:`mekuri-mekuri`(Dexie で管理)
 
 ## テーブル
@@ -13,7 +13,10 @@
 | --- | --- | --- |
 | id | string | UUID |
 | title | string | タイトル(空なら「無題のノート」と表示) |
-| order | number | 本棚での並び順。小さいほど先。新しいノートは先頭(今の最小値 − 1) |
+| order | number | 本棚での並び順。小さいほど先。新しいノートは先頭(今の最小値 − 1)。お気に入りの段・通常の段それぞれの中でこの順に並べる |
+| favorite | boolean | お気に入り(v3〜)。本棚の上の段に並ぶ |
+| deletedAt | number \| null | ゴミ箱に入れた日時(v3〜)。null ならゴミ箱ではない。30日たつと完全に削除 |
+| design | object | デザイン(v3〜)。下の「ノートのデザイン」参照 |
 | createdAt | number | 作成日時(ミリ秒) |
 | updatedAt | number | 更新日時(ミリ秒)。ページの編集でも更新する |
 
@@ -28,10 +31,15 @@
 | order | number | ノート内の順番。0, 1, 2… に振り直して保つ |
 | content | object | TipTap(ProseMirror)の JSON。下の「ページ内容」参照 |
 | stickies | Sticky[] | 付箋(v2〜)。下の「付箋」参照。付箋がなければ空の配列 |
+| deletedAt | number \| null | ゴミ箱に入れた日時(v3〜)。null ならゴミ箱ではない。30日たつと完全に削除 |
+| deletedIndex | number \| null | ゴミ箱に入れたときの位置(0から。v3〜)。復元するとこの位置へ戻す |
 | createdAt | number | 作成日時 |
 | updatedAt | number | 更新日時 |
 
 インデックス:`id`(主キー)、`noteId`、`[noteId+order]`
+
+- ゴミ箱のページは並び(order)の振り直しの対象外。読み出すときに deletedAt で除外する
+- ノートをゴミ箱に入れても、中のページの deletedAt は変えない(ノートを戻すとページもそのまま戻る)
 
 ### 付箋(Sticky、ページの stickies の中身。v2〜)
 
@@ -46,6 +54,23 @@
 
 ※ 付箋の画面はアプリ 0.3.0 から。0.2.0 ではデータの入れ物だけ用意していた(0.3.0 でデータの形は変わっていない)
 
+### ノートのデザイン(design、v3〜)
+
+すべて**名前**で保存する。実際の色・柄は `src/design/palette.ts`・`src/design/cover.ts` で決める。**名前は追加だけにして、変更・削除はしない。** 知らない名前は表示のときに既定値になる(`normalizeDesign`)。
+
+| 項目 | 値 |
+| --- | --- |
+| paper | 紙の背景色。`null`(指定なし=アプリのテーマに合わせる)または `white` `ivory` `cream` `pink` `peach` `lemon` `mint` `sky` `lavender` `gray` `navy` `blackboard` `charcoal` |
+| border.width | 縁の太さ:`none` `thin` `medium` `thick` |
+| border.color | 縁の色:`brown` `beige` `gold` `red` `pink` `orange` `green` `teal` `blue` `navy` `purple` `gray` `black` |
+| cover.color | 表紙の色:`slate` `navy` `forest` `wine` `terracotta` `mustard` `sakura` `mint` `sky` `lavender` `cream` `charcoal` |
+| cover.pattern | 柄:`plain` `stripe` `border` `dots` `check` `gingham` `grid` `diagonal` `wave` `ichimatsu` `seigaiha` `uroko` |
+| cover.layout | 文字の配置:`topLeft` `center` `bottomLeft` `bottomRight` `band` `label` `vertical` `bottomBand` `frame` `spine` |
+| cover.font | 書体:`gothicBold` `gothic` `gothicLight` `gothicWide` `minchoBold` `mincho` `minchoWide` `maru` `maruLight` `classic` |
+
+- 既存のノート(v2 まで)は、今までと同じ見た目の `{ paper: null, border: { color: 'brown', width: 'none' }, cover: { pattern: 'plain', color: 'slate', layout: 'topLeft', font: 'gothicBold' } }` にする
+- 新しいノートは表紙の色だけランダム
+
 ### meta(アプリの設定・記録)
 
 | key | value | 説明 |
@@ -53,6 +78,12 @@
 | firstLaunchAt | number | 初めて起動した日時 |
 | lastBackupAt | number | 最後にバックアップを書き出した日時 |
 | backupReminderSnoozedAt | number | バックアップ案内で「あとで」を押した日時 |
+
+## 端末ごとの設定(IndexedDB の外)
+
+| 保存場所 | キー | 値 | 説明 |
+| --- | --- | --- | --- |
+| localStorage | `mekuri-theme` | `system` `light` `dark` | 画面の明るさ(アプリ 0.4.0〜)。ノートのデータではないのでバックアップには入れない。index.html でも読む |
 
 ## ページ内容(content)で使うノード
 
@@ -80,8 +111,8 @@ TipTap の JSON(`{ type: 'doc', content: [...] }`)。v1 で使うもの:
 ```json
 {
   "app": "mekuri-mekuri",
-  "schemaVersion": 2,
-  "appVersion": "0.2.0",
+  "schemaVersion": 3,
+  "appVersion": "0.4.0",
   "exportedAt": 1759740000000,
   "notes": [ /* notes の行そのまま */ ],
   "pages": [ /* pages の行そのまま */ ]
@@ -90,6 +121,7 @@ TipTap の JSON(`{ type: 'doc', content: [...] }`)。v1 で使うもの:
 
 - 読み込み時、`schemaVersion` が今より古ければ `src/backup/format.ts` の `migrations` で順に変換する
 - 今より新しい版のファイルは読み込まない(アプリの更新を案内)
+- ゴミ箱のノート・ページもバックアップに含める(ゴミ箱のまま戻る)
 - 読み込み方法:「置き換える」(今のノートを全部消す・確認あり)/「追加する」(id を振り直して本棚の先頭に追加)
 
 ## データ構造を変えるときの決まり
@@ -103,3 +135,4 @@ TipTap の JSON(`{ type: 'doc', content: [...] }`)。v1 で使うもの:
 
 - v1(アプリ 0.1.0):最初の形
 - v2(アプリ 0.2.0〜0.3.0):ページに `stickies`(付箋)を追加。既存のページ・v1 のバックアップファイルには空の配列を入れる。本文の装飾に `textColor`・`marker`・`underline` を追加(本文の JSON の形は変わらないので、移し替えは不要)
+- v3(アプリ 0.4.0〜):ノートに `favorite`・`deletedAt`・`design`、ページに `deletedAt`・`deletedIndex` を追加(ゴミ箱・お気に入り・デザイン)。既存のノートは「お気に入りでない・ゴミ箱でない・今までと同じ見た目」に、v2 以前のバックアップファイルも同じく変換する。インデックスは変わらない

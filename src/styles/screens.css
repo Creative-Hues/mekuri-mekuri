@@ -8,66 +8,134 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   max-width: 1080px;
-  margin: 0 auto 16px;
+  margin: 0 auto 8px;
+}
+.shelf-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  background: transparent;
 }
 .app-title {
   margin: 0;
   font-size: 22px;
   letter-spacing: 0.08em;
 }
+.shelf-section {
+  max-width: 1080px;
+  margin: 0 auto 18px;
+}
+.shelf-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.shelf-label .icon {
+  color: var(--accent);
+}
 .shelf-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
-  gap: 22px 18px;
-  max-width: 1080px;
-  margin: 0 auto;
+  /* スマホでは1段に3冊、広い画面では表紙を少し大きく */
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 22px 16px;
+  margin: 0;
+  padding: 0 0 6px;
+  list-style: none;
+}
+/* 1冊分の場所。下に棚板を描く(隣の本の棚板とつながって1枚の板に見える) */
+@media (min-width: 600px) {
+  .shelf-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 26px 20px;
+  }
+}
+.shelf-item {
+  position: relative;
+  /* 棚板(::after)を本の後ろに描くため */
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+}
+.shelf-item::after {
+  content: '';
+  position: absolute;
+  left: -10px;
+  right: -10px;
+  bottom: 30px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--shelf-board);
+  box-shadow: 0 3px 6px rgb(0 0 0 / 0.12);
+  z-index: -1;
+}
+.shelf-item.is-dragging {
+  z-index: 5;
+}
+.shelf-item.is-dragging::after {
+  display: none;
 }
 .book {
   display: block;
   aspect-ratio: 3 / 4;
-  border-radius: 6px 12px 12px 6px;
+  border-radius: 4px 10px 10px 4px;
+  margin-bottom: 4px;
   cursor: pointer;
   border: 0;
   padding: 0;
   background: none;
-}
-.book-cover {
-  position: relative;
-  display: flex;
-  height: 100%;
-  padding: 18px 12px 12px 20px;
-  border-radius: inherit;
-  background: #8fa3a6;
-  color: #fff;
   box-shadow: var(--shadow);
-  overflow: hidden;
   transition: transform 0.15s ease;
 }
-/* 背表紙 */
-.book-cover::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 8px;
-  background: rgb(0 0 0 / 0.14);
-}
-.book:hover .book-cover {
+.book:hover {
   transform: translateY(-3px);
 }
-.book-title {
-  font-weight: 700;
-  font-size: 15px;
-  line-height: 1.45;
-  display: -webkit-box;
-  -webkit-line-clamp: 5;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  word-break: break-word;
+.shelf-item.is-dragging .book {
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.25);
+}
+.book-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  margin-top: 4px;
+}
+.book-foot .drag-handle {
+  width: 36px;
+  height: 30px;
+}
+.book-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+.book-star:hover {
+  background: var(--accent-soft);
+}
+.book-star.is-on {
+  color: var(--accent);
 }
 .book--new {
   border: 2px dashed var(--line);
   color: var(--ink-soft);
+  box-shadow: none;
+  margin-bottom: 38px;
 }
 .book--new:hover {
   background: var(--surface);
@@ -164,4 +232,95 @@
   background: var(--surface);
   color: var(--ink-soft);
   white-space: nowrap;
+}
+
+/* ---- ゴミ箱 ---- */
+.trash-empty-btn {
+  margin-left: auto;
+  min-height: 36px;
+  font-size: 14px;
+}
+.trash-intro {
+  max-width: 640px;
+  margin: 0 auto 12px;
+  padding: 0 4px;
+}
+.trash-none {
+  max-width: 640px;
+  margin: 32px auto;
+  text-align: center;
+  color: var(--ink-soft);
+}
+.trash-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.trash-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.trash-cover {
+  flex: none;
+  width: 48px;
+  aspect-ratio: 3 / 4;
+  border-radius: 3px 6px 6px 3px;
+  box-shadow: var(--shadow);
+}
+.trash-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.trash-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.trash-from,
+.trash-days {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.trash-buttons {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.trash-buttons .btn {
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
+/* いくつかから1つを選ぶボタン(表示の明るさなど) */
+.segmented {
+  display: flex;
+  padding: 3px;
+  gap: 3px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.segmented-btn {
+  flex: 1;
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 14px;
+  cursor: pointer;
+}
+.segmented-btn.is-selected {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--shadow);
 }

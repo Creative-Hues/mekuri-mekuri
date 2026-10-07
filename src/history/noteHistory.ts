@@ -1,9 +1,9 @@
 import type { Node as PMNode } from '@tiptap/pm/model'
-import type { Page, Sticky } from '../db/db'
+import type { NoteDesign, Page, Sticky } from '../db/db'
 
 /**
  * ノート単位の「元に戻す/やり直し」の履歴。
- * 文章の編集・行の移動・付箋・ページの追加/削除/並び替え・タイトル変更を1本の履歴で扱う。
+ * 文章の編集・行の移動・付箋・ページの追加/削除/並び替え・タイトル変更・デザインを1本の履歴で扱う。
  * 履歴はメモリ上だけに持ち、アプリを閉じると消える。
  */
 
@@ -20,6 +20,8 @@ export type HistoryEntry =
   | { kind: 'addPage'; page: Page; index: number }
   | { kind: 'deletePage'; page: Page; index: number }
   | { kind: 'rename'; before: string; after: string }
+  /** ノートのデザイン(紙・縁・表紙) */
+  | { kind: 'design'; before: NoteDesign; after: NoteDesign }
   | { kind: 'pageOrder'; before: string[]; after: string[] }
   | {
       kind: 'stickies'
@@ -38,11 +40,14 @@ export type HistoryEntry =
 export interface HistoryApplier {
   /** ページ内容を指定の内容にする */
   setPageContent(pageId: string, doc: PMNode): Promise<void>
-  /** ページを削除し、削除時点のページ(内容込み)を返す */
+  /** ページを完全に削除し、削除時点のページ(内容込み)を返す(ページの追加を元に戻すとき) */
   removePage(pageId: string): Promise<Page | null>
-  /** ページを index の位置に戻す */
+  /** ページをゴミ箱に入れ、その時点のページ(内容込み)を返す(ページの削除をやり直すとき) */
+  trashPage(pageId: string): Promise<Page | null>
+  /** ページを index の位置に戻す(ゴミ箱に入っていれば、ゴミ箱から出す) */
   restorePage(page: Page, index: number): Promise<void>
   rename(title: string): Promise<void>
+  setDesign(design: NoteDesign): Promise<void>
   /** ページを pageIds の順に並べる */
   reorderPages(pageIds: string[]): Promise<void>
   /** ページの付箋を指定のものにする */
@@ -138,6 +143,12 @@ export class NoteHistory {
   recordDeletePage(page: Page, index: number) {
     this.breakGroup = true
     this.push({ kind: 'deletePage', page, index })
+  }
+
+  recordDesign(before: NoteDesign, after: NoteDesign) {
+    if (JSON.stringify(before) === JSON.stringify(after)) return
+    this.breakGroup = true
+    this.push({ kind: 'design', before, after })
   }
 
   recordRename(before: string, after: string) {
@@ -255,15 +266,19 @@ export class NoteHistory {
         }
         break
       case 'deletePage':
+        // 削除したページはゴミ箱に入っている。元に戻すとゴミ箱から戻り、やり直すと再びゴミ箱へ
         if (dir === 'undo') {
           await a.restorePage(entry.page, entry.index)
         } else {
-          const removed = await a.removePage(entry.page.id)
-          if (removed) entry.page = removed
+          const trashed = await a.trashPage(entry.page.id)
+          if (trashed) entry.page = trashed
         }
         break
       case 'rename':
         await a.rename(dir === 'undo' ? entry.before : entry.after)
+        break
+      case 'design':
+        await a.setDesign(dir === 'undo' ? entry.before : entry.after)
         break
       case 'pageOrder':
         await a.reorderPages(dir === 'undo' ? entry.before : entry.after)

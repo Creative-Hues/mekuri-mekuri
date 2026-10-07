@@ -25,8 +25,10 @@ function historyFor(noteId: string) {
   return new NoteHistory({
     setPageContent: async () => {},
     removePage: async () => null,
+    trashPage: async () => null,
     restorePage: async () => {},
     rename: async () => {},
+    setDesign: async () => {},
     reorderPages: (ids) => reorderPages(noteId, ids),
     setStickies: async () => {},
   })
