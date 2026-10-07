@@ -12,7 +12,7 @@ export type Theme = 'light' | 'dark'
 
 export const THEME_KEY = 'mekuri-theme'
 /** 画面の上の帯(ステータスバー)の色。base.css の --bg と同じ */
-const THEME_COLOR: Record<Theme, string> = { light: '#f6f1e7', dark: '#1b1a18' }
+export const THEME_COLOR: Record<Theme, string> = { light: '#ffffff', dark: '#36363c' }
 
 export const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
   { value: 'system', label: '端末に合わせる' },

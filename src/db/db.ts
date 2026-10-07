@@ -2,7 +2,7 @@ import Dexie, { type EntityTable } from 'dexie'
 import type { JSONContent } from '@tiptap/core'
 import { legacyDesignV3, upgradeDesignToV5 } from '../design/defaults'
 import type { BorderWidthName } from '../design/palette'
-import type { BodyFontName, PatternScaleName } from '../design/cover'
+import type { BodyFontName, CoverTextColorName, PatternScaleName } from '../design/cover'
 
 // データ構造のバージョン。変えるときは docs/data-model.md も更新し、
 // 下の db.version(...) に新しい版と upgrade(マイグレーション)を追加する
@@ -16,13 +16,14 @@ export interface NoteDesign {
   border: { color: string; width: BorderWidthName }
   /**
    * 表紙。color はベース色。
-   * subColor(柄の色。auto は なじむ色)・patternScale(柄の大きさ)は v5〜
+   * subColor(柄の色。auto は なじむ色)・patternScale(柄の大きさ)・textColor(タイトルの文字色)は v5〜
    */
   cover: {
     pattern: string
     color: string
     subColor: string
     patternScale: PatternScaleName
+    textColor: CoverTextColorName
     layout: string
     font: string
   }
@@ -167,7 +168,7 @@ db.version(4).stores({
   meta: 'key',
 })
 
-// v5(アプリ 1.1.0〜):デザインに 本文の書体・表紙のサブ色・柄の大きさ を追加し、
+// v5(アプリ 1.1.0〜):デザインに 本文の書体・表紙のサブ色・柄の大きさ・タイトルの文字色 を追加し、
 // 市松・青海波・鱗の柄をなくした(その柄のノートは無地にする)。インデックスは変わらない。
 // 更新日時(updatedAt)は変えない
 db.version(5)

@@ -12,10 +12,11 @@
   outline: none;
   /* 本文の書体(ノートのデザインで選ぶ。NoteView.tsx・PrintView.tsx が指定する) */
   font-family: var(--note-font, var(--font));
-  font-size: 16px;
+  /* 文字サイズの設定(端末ごと。src/theme/textSize.ts)。見出し・表は em なので一緒に大きくなる */
+  font-size: calc(16px * var(--text-zoom, 1));
   line-height: 1.8;
   word-break: break-word;
-  caret-color: var(--accent);
+  caret-color: var(--accent-ink);
 }
 .page-editor > * + * {
   margin-top: 0.35em;
@@ -61,7 +62,7 @@
   margin: 0;
 }
 .page-editor li::marker {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* ToDoリスト */
@@ -87,7 +88,7 @@
   width: 1.05em;
   height: 1.05em;
   margin: 0;
-  accent-color: var(--accent);
+  accent-color: var(--accent-ink);
   cursor: pointer;
 }
 .page-editor ul[data-type='taskList'] li[data-checked='true'] > div {

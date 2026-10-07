@@ -26,6 +26,20 @@
   margin: 0;
   font-size: 22px;
   letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+/* 幅の狭いスマホ:アプリ名が折り返さないよう、名前とボタンを少し小さくする */
+@media (max-width: 420px) {
+  .app-title {
+    font-size: 19px;
+    letter-spacing: 0.04em;
+  }
+  .shelf-actions {
+    gap: 0;
+  }
+  .shelf-actions .icon-btn {
+    width: 36px;
+  }
 }
 .shelf-section {
   max-width: 1080px;
@@ -41,7 +55,7 @@
   color: var(--ink-soft);
 }
 .shelf-label .icon {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .shelf-grid {
   display: grid;
@@ -129,7 +143,7 @@
   background: var(--accent-soft);
 }
 .book-star.is-on {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .book--new {
   border: 2px dashed var(--line);
@@ -139,7 +153,7 @@
 }
 .book--new:hover {
   background: var(--surface);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .book-new-inner {
   display: flex;
@@ -184,6 +198,10 @@
 .settings-section h2 {
   margin: 0 0 8px;
   font-size: 16px;
+}
+.settings-subhead {
+  margin: 18px 0 6px;
+  font-size: 15px;
 }
 .settings-note {
   margin: 0 0 12px;
@@ -299,14 +317,19 @@
   font-size: 14px;
 }
 
-/* いくつかから1つを選ぶボタン(表示の明るさなど) */
+/*
+ * いくつかから1つを選ぶボタン(表示の明るさ・文字サイズ・デザインのタブなど)。
+ * 全体は控えめなボタンと同じ枠で囲み、選んでいる項目はアクセントカラーで塗って
+ * 濃いアクセントの縁を付ける(薄い色の塗りだけでは白い背景で見分けにくいため)。
+ * 見分けやすさは tests/themeColors.test.ts で確かめている
+ */
 .segmented {
   display: flex;
   padding: 3px;
   gap: 3px;
   border-radius: 10px;
-  background: var(--bg);
-  border: 1px solid var(--line);
+  background: var(--seg-bg);
+  border: 1px solid var(--btn-border);
 }
 .segmented-btn {
   flex: 1;
@@ -322,11 +345,15 @@
   opacity: 0.45;
   cursor: default;
 }
-.segmented-btn.is-selected {
-  background: var(--surface);
+.segmented-btn:hover:not(:disabled):not(.is-selected) {
+  background: var(--btn-bg);
   color: var(--ink);
-  font-weight: 600;
-  box-shadow: var(--shadow);
+}
+.segmented-btn.is-selected {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1.5px var(--accent-ink);
 }
 
 /* ---- 初回の使い方説明 ---- */
@@ -375,7 +402,7 @@
   margin-bottom: 12px;
   border-radius: 50%;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .onboarding-title {
   margin: 0 0 8px;
@@ -416,7 +443,7 @@
   background: var(--line);
 }
 .onboarding-dot.is-current::before {
-  background: var(--accent);
+  background: var(--accent-ink);
 }
 .onboarding-actions {
   display: flex;
@@ -452,4 +479,57 @@
 }
 .settings-list li + li {
   margin-top: 4px;
+}
+
+/* 画面に固定して出す枠(本棚のヘルプなど、スクロールする画面の上に出すもの) */
+.overlay-fixed {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+.help-howto {
+  margin: 0 0 4px;
+  padding-left: 1.2em;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-soft);
+}
+.help-howto li + li {
+  margin-top: 4px;
+}
+.help-footer {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+/* 設定の折りたたみ(ショートカットキーの一覧) */
+.settings-fold-head {
+  margin: 0;
+}
+.settings-fold {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.settings-fold-icon {
+  display: inline-flex;
+  color: var(--ink-soft);
+  transition: transform 0.15s;
+}
+.settings-fold-icon.is-open {
+  transform: rotate(90deg);
+}
+#shortcut-list {
+  margin-top: 8px;
 }

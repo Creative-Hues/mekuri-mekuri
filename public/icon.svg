@@ -1,9 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#f6f1e7"/>
-  <!-- 開いたノート -->
-  <path d="M256 150 C210 120 150 112 100 120 L100 370 C150 362 210 370 256 400 Z" fill="#ffffff" stroke="#3f4a5a" stroke-width="14" stroke-linejoin="round"/>
-  <path d="M256 150 C302 120 362 112 412 120 L412 370 C362 362 302 370 256 400 Z" fill="#fffdf8" stroke="#3f4a5a" stroke-width="14" stroke-linejoin="round"/>
-  <!-- めくれる角 -->
-  <path d="M412 300 L412 370 C392 368 370 368 350 370 C372 352 394 330 412 300 Z" fill="#e9b872" stroke="#3f4a5a" stroke-width="10" stroke-linejoin="round"/>
-  <path d="M140 180 H220 M140 220 H220 M140 260 H200" stroke="#c9b9a0" stroke-width="12" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<rect width="100" height="100" rx="19" fill="#5bb0e6"/>
+<path d="M9 31 Q30 24 50 32 Q70 24 91 31 V80 Q70 74 50 82 Q30 74 9 80 Z" fill="#2378b5"/>
+<path d="M13 28 Q31 22 50 30 V77 Q31 69 13 75 Z" fill="#ffffff"/>
+<path d="M87 28 Q69 22 50 30 V77 Q69 69 87 75 Z" fill="#f2f8fd"/>
+<path d="M21 40 Q31 37 42 41" fill="none" stroke="#2378b5" stroke-width="3" stroke-linecap="round"/>
+<path d="M21 50 Q31 47 42 51" fill="none" stroke="#2378b5" stroke-width="3" stroke-linecap="round"/>
+<path d="M21 60 Q28 58 35 59" fill="none" stroke="#2378b5" stroke-width="3" stroke-linecap="round"/>
+<g transform="rotate(-7 69 50)">
+<rect x="57" y="37" width="24" height="24" rx="2" fill="#b9a6ff"/>
+<line x1="62" y1="46" x2="76" y2="46" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+<line x1="62" y1="53" x2="71" y2="53" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+</g>
 </svg>

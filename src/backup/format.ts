@@ -52,7 +52,7 @@ const migrations: Record<number, (data: any) => any> = {
   }),
   // v3 → v4:画像を追加(v3 までのファイルには画像はない)
   3: (d) => ({ ...d, schemaVersion: 4, images: Array.isArray(d.images) ? d.images : [] }),
-  // v4 → v5:デザインに 本文の書体・サブ色・柄の大きさ を追加、市松・青海波・鱗は無地に(DB の移し替えと同じ)
+  // v4 → v5:デザインに 本文の書体・サブ色・柄の大きさ・タイトルの文字色 を追加、市松・青海波・鱗は無地に(DB の移し替えと同じ)
   4: (d) => ({
     ...d,
     schemaVersion: 5,

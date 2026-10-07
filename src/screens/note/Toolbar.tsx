@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef, useState, type ReactNode } from 'react'
 import type { Editor } from '@tiptap/core'
-import { Icon, type IconName } from '../../components/Icon'
+import { Icon } from '../../components/Icon'
 import {
   applyLine,
   applyMarker,
@@ -23,7 +23,9 @@ import {
   type LineColorName,
   type LineStyleName,
 } from '../../editor/palette'
-import { shortcutText, withShortcut } from '../../editor/shortcuts'
+import { withShortcut } from '../../editor/shortcuts'
+import { Glyph, tipProps } from '../../help/buttons'
+import { toolbarButton, type ToolbarButtonId } from './noteButtons'
 import { useKeyboardOpen } from '../../layout/useKeyboardInset'
 import type { NoteSession } from './session'
 import { useDialog } from '../../components/Dialog'
@@ -274,73 +276,62 @@ export function Toolbar({
       <div className="toolbar-row">
         <Group>
           <TBtn
-            label={withShortcut('元に戻す', 'undo')}
-            icon="undo"
+            btn="undo"
             disabled={!session.history.canUndo()}
             onClick={() => void session.history.undo()}
           />
           <TBtn
-            label={withShortcut('やり直し', 'redo')}
-            icon="redo"
+            btn="redo"
             disabled={!session.history.canRedo()}
             onClick={() => void session.history.redo()}
           />
         </Group>
         <Group>
           <TBtn
-            label={withShortcut('大見出し', 'h1')}
-            text="大"
+            btn="h1"
             active={headingActive(1)}
             disabled={!headings}
             onClick={() => run((e) => toggleHeadingLevel(e, 1))}
           />
           <TBtn
-            label={withShortcut('中見出し', 'h2')}
-            text="中"
+            btn="h2"
             active={headingActive(2)}
             disabled={!headings}
             onClick={() => run((e) => toggleHeadingLevel(e, 2))}
           />
           <TBtn
-            label={withShortcut('小見出し', 'h3')}
-            text="小"
+            btn="h3"
             active={headingActive(3)}
             disabled={!headings}
             onClick={() => run((e) => toggleHeadingLevel(e, 3))}
           />
           <TBtn
-            label="トグル見出し"
-            icon="toggle"
+            btn="toggle"
             active={active('toggleHeading')}
             disabled={!headings}
             onClick={() => run(toggleToggle)}
           />
           <TBtn
-            label={withShortcut('本文に戻す', 'body')}
-            text="本"
+            btn="body"
             disabled={!headings}
             onClick={() => run(setBody)}
           />
         </Group>
         <Group>
           <TBtn
-            label={withShortcut('太字', 'bold')}
-            text="B"
-            textClass="tb-bold"
+            btn="bold"
             active={active('bold')}
             disabled={!usable}
             onClick={() => run(toggleBold)}
           />
           <TBtn
-            label={withShortcut('取り消し線', 'strike')}
-            text="S"
-            textClass="tb-strike"
+            btn="strike"
             active={active('strike')}
             disabled={!usable}
             onClick={() => run(toggleStrike)}
           />
           <TBtn
-            label="文字色"
+            btn="textColor"
             active={panel === 'textColor'}
             disabled={!usable}
             onClick={() => togglePanel('textColor')}
@@ -350,7 +341,7 @@ export function Toolbar({
             </span>
           </TBtn>
           <TBtn
-            label={`マーカー(最後に使った色を ${shortcutText('marker')} で付け外し)`}
+            btn="marker"
             active={panel === 'marker'}
             disabled={!usable}
             onClick={() => togglePanel('marker')}
@@ -360,7 +351,7 @@ export function Toolbar({
             </span>
           </TBtn>
           <TBtn
-            label={`ライン(最後に使った線を ${shortcutText('line')} で付け外し)`}
+            btn="line"
             active={panel === 'line' || lineActive}
             disabled={!usable}
             onClick={() => togglePanel('line')}
@@ -376,22 +367,19 @@ export function Toolbar({
         </Group>
         <Group>
           <TBtn
-            label={withShortcut('箇条書き', 'bulletList')}
-            icon="bullet"
+            btn="bulletList"
             active={active('bulletList')}
             disabled={!usable}
             onClick={() => run(toggleBullet)}
           />
           <TBtn
-            label={withShortcut('番号付きリスト', 'orderedList')}
-            icon="ordered"
+            btn="orderedList"
             active={active('orderedList')}
             disabled={!usable}
             onClick={() => run(toggleOrdered)}
           />
           <TBtn
-            label={withShortcut('ToDoリスト', 'taskList')}
-            icon="todo"
+            btn="taskList"
             active={active('taskList')}
             disabled={!usable}
             onClick={() => run(toggleTodo)}
@@ -399,17 +387,15 @@ export function Toolbar({
         </Group>
         <Group>
           <TBtn
-            label="挿入(表・画像・リンク)"
-            icon="plus"
+            btn="insert"
             active={panel === 'insert'}
             disabled={!usable}
             onClick={() => togglePanel('insert')}
           />
-          {inTable && <TBtn label="表の操作(色・行・列)" icon="table" onClick={openCellMenu} />}
-          <TBtn label={withShortcut('付箋を追加', 'addSticky')} icon="sticky" onClick={onAddSticky} />
+          {inTable && <TBtn btn="tableMenu" onClick={openCellMenu} />}
+          <TBtn btn="sticky" onClick={onAddSticky} />
           <TBtn
-            label="行を選ぶ(まとめて移動)"
-            icon="select"
+            btn="select"
             onClick={() => {
               setPanel(null)
               session.setSelectMode(true)
@@ -419,8 +405,7 @@ export function Toolbar({
         {!top && keyboardOpen && (
           <Group>
             <TBtn
-              label="キーボードを閉じる"
-              icon="keyboardHide"
+              btn="keyboardHide"
               onClick={() => {
                 setPanel(null)
                 ;(document.activeElement as HTMLElement | null)?.blur()
@@ -461,30 +446,30 @@ function keepFocus(e: { preventDefault: () => void }) {
   e.preventDefault()
 }
 
+/**
+ * ツールバーのボタン。名前・見た目・ショートカットは noteButtons.tsx の一覧から取る(ヘルプと同じ情報)。
+ * children:今の色など、その時々で見た目が変わるボタンだけ使う
+ */
 function TBtn(props: {
-  label: string
-  icon?: IconName
-  text?: string
-  textClass?: string
+  btn: ToolbarButtonId
   active?: boolean
   disabled?: boolean
   onClick: () => void
   children?: ReactNode
 }) {
+  const def = toolbarButton(props.btn)
   return (
     <button
       type="button"
       className={`tb-btn${props.active ? ' is-active' : ''}`}
-      aria-label={props.label}
+      {...tipProps(def)}
       aria-pressed={props.active ?? undefined}
-      title={props.label}
       disabled={props.disabled}
       onPointerDown={keepFocus}
       onMouseDown={keepFocus}
       onClick={props.onClick}
     >
-      {props.children ??
-        (props.icon ? <Icon name={props.icon} /> : <span className={props.textClass}>{props.text}</span>)}
+      {props.children ?? <Glyph glyph={def.glyph} />}
     </button>
   )
 }

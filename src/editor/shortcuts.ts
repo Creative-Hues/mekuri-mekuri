@@ -29,6 +29,8 @@ export type ShortcutId =
   | 'link'
   | 'search'
   | 'print'
+  | 'textBigger'
+  | 'textSmaller'
 
 interface KeyCombo {
   code: string
@@ -43,6 +45,8 @@ interface ShortcutDef {
   label: string
   /** 最初の組み合わせを一覧・ボタンの説明に表示する */
   combos: KeyCombo[]
+  /** 同じ働きをする別のキー(一覧には出さない。キーボードの配列による違いを吸収する) */
+  aliases?: KeyCombo[]
 }
 
 export const SHORTCUTS: ShortcutDef[] = [
@@ -67,6 +71,26 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'link', label: 'Webリンクを付ける', combos: [{ code: 'KeyK' }] },
   { id: 'search', label: '全ノート検索', combos: [{ code: 'KeyF' }] },
   { id: 'print', label: 'PDF・印刷(ノートを開いているとき)', combos: [{ code: 'KeyP' }] },
+  // 文字サイズ(ノートを開いているとき)。「+」のキーは US 配列では =(Equal)、JIS 配列では ;(Semicolon)。
+  // Shift を押しても押さなくても効くようにし、テンキーの +・- も使える
+  {
+    id: 'textBigger',
+    label: '文字を大きく(ノートを開いているとき)',
+    combos: [{ code: 'Semicolon' }],
+    aliases: [
+      { code: 'Semicolon', shift: true },
+      { code: 'Equal' },
+      { code: 'Equal', shift: true },
+      { code: 'NumpadAdd' },
+      { code: 'NumpadAdd', shift: true },
+    ],
+  },
+  {
+    id: 'textSmaller',
+    label: '文字を小さく(ノートを開いているとき)',
+    combos: [{ code: 'Minus' }],
+    aliases: [{ code: 'NumpadSubtract' }],
+  },
 ]
 
 /** Mac(iPad のキーボードを含む)では Ctrl の代わりに ⌘ を使う */
@@ -86,7 +110,7 @@ export function matchShortcut(e: KeyboardEvent): ShortcutId | null {
   const mod = IS_MAC ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey
   const none = !e.metaKey && !e.ctrlKey
   for (const s of SHORTCUTS) {
-    for (const c of s.combos) {
+    for (const c of [...s.combos, ...(s.aliases ?? [])]) {
       if (c.noMod ? !none : !mod) continue
       if (e.code === c.code && e.shiftKey === !!c.shift && e.altKey === !!c.alt) return s.id
     }
@@ -100,6 +124,9 @@ function keyName(code: string): string {
   // 矢印は絵文字にならない普通の文字(U+2191・U+2193)を使う
   if (code === 'ArrowUp') return '↑'
   if (code === 'ArrowDown') return '↓'
+  // 文字サイズのキーは、キーに書かれた文字ではなく働き(+・-)で表示する
+  if (code === 'Semicolon' || code === 'Equal' || code === 'NumpadAdd') return '+'
+  if (code === 'Minus' || code === 'NumpadSubtract') return '-'
   return code
 }
 

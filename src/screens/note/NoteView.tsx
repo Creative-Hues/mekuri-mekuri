@@ -16,6 +16,7 @@ import { normalizeDesign } from '../../design/defaults'
 import { bodyFontFamily } from '../../design/cover'
 import { borderColor, borderWidth, paperColor } from '../../design/palette'
 import { paperTone, useTheme } from '../../theme/theme'
+import { TEXT_SIZES, changeTextSize, textSizeInfo, useTextSize } from '../../theme/textSize'
 import { shelfHistory } from '../../history/shelfHistory'
 import { useLayoutMode } from '../../layout/useLayoutMode'
 import { useKeyboardOpen } from '../../layout/useKeyboardInset'
@@ -33,6 +34,9 @@ import { Toolbar } from './Toolbar'
 import { PageList } from './PageList'
 import { TocPanel } from './TocPanel'
 import { DesignPanel } from './DesignPanel'
+import { NoteHelp } from './NoteHelp'
+import { ButtonTips } from '../../help/ButtonTips'
+import { HeaderButton } from './noteButtons'
 import { TableMenu } from './TableMenu'
 import { LinkMenu } from './LinkMenu'
 import { NoteLinkPicker } from './NoteLinkPicker'
@@ -91,10 +95,12 @@ export function NoteView({
   const [pageListOpen, setPageListOpen] = useState(false)
   const [tocOpen, setTocOpen] = useState(false)
   const [designOpen, setDesignOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   /** ノートへのリンクを入れる先のエディタ(選択画面を開いている間) */
   const [linkPickerFor, setLinkPickerFor] = useState<Editor | null>(null)
   const theme = useTheme()
+  const textSize = useTextSize()
   const note = useLiveQuery(() => db.notes.get(noteId), [noteId], null)
   const pages = useLiveQuery(() => getPages(noteId), [noteId])
 
@@ -330,6 +336,12 @@ export function NoteView({
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector('.dialog-backdrop')) return
       const shortcut = matchShortcut(e)
+      if (shortcut === 'textBigger' || shortcut === 'textSmaller') {
+        // ブラウザの画面の拡大・縮小の代わりに、ノートの文字サイズを変える(編集中も使える)
+        e.preventDefault()
+        changeTextSize(shortcut === 'textBigger' ? 1 : -1)
+        return
+      }
       if ((shortcut === 'undo' || shortcut === 'redo') && !isEditing(e.target)) {
         e.preventDefault()
         void session.history[shortcut]()
@@ -660,16 +672,9 @@ export function NoteView({
       style={viewStyle}
     >
       <header className="note-header">
-        {layout.sidebar !== 'fixed' && (
-          <a className="icon-btn" href={href.shelf()} aria-label="本棚へ戻る" title="本棚へ戻る">
-            <Icon name="back" />
-          </a>
-        )}
-        {onToggleSidebar && (
-          <button className="icon-btn" onClick={onToggleSidebar} aria-label="ノート一覧" title="ノート一覧">
-            <Icon name="menu" />
-          </button>
-        )}
+        {/* ボタンの名前・説明は noteButtons.tsx の一覧から(ヘルプと同じ情報) */}
+        {layout.sidebar !== 'fixed' && <HeaderButton btn="back" href={href.shelf()} />}
+        {onToggleSidebar && <HeaderButton btn="sidebar" onClick={onToggleSidebar} />}
         <input
           className="note-title-input"
           value={titleDraft}
@@ -685,35 +690,15 @@ export function NoteView({
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
           }}
         />
-        <button
-          className="icon-btn"
-          onClick={() => setTocOpen(true)}
-          aria-label="目次"
-          title={withShortcut('目次', 'toc')}
-        >
-          <Icon name="toc" />
-        </button>
-        <button
-          className="icon-btn"
-          onClick={() => setPageListOpen(true)}
-          aria-label="ページ一覧"
-          title={withShortcut('ページ一覧', 'pageList')}
-        >
-          <Icon name="pages" />
-        </button>
-        <button className="icon-btn" onClick={() => setDesignOpen(true)} aria-label="デザイン" title="デザイン">
-          <Icon name="palette" />
-        </button>
-        <button
-          className="icon-btn"
-          onClick={() => setMenuOpen((o) => !o)}
-          aria-label="ノートのメニュー"
-          aria-expanded={menuOpen}
-          title="ノートのメニュー"
-        >
-          <Icon name="dots" />
-        </button>
+        <HeaderButton btn="toc" onClick={() => setTocOpen(true)} />
+        <HeaderButton btn="pageList" onClick={() => setPageListOpen(true)} />
+        <HeaderButton btn="design" onClick={() => setDesignOpen(true)} />
+        <HeaderButton btn="help" onClick={() => setHelpOpen(true)} />
+        <HeaderButton btn="menu" onClick={() => setMenuOpen((o) => !o)} expanded={menuOpen} />
       </header>
+
+      {/* マウスを乗せた・長押ししたボタンの名前 */}
+      <ButtonTips scope=".note-view" />
 
       {menuOpen && (
         <>
@@ -733,6 +718,31 @@ export function NoteView({
               <Icon name="search" />
               全ノート検索
             </button>
+            {/* 文字サイズ:メニューを閉じずに何度か押せるようにする */}
+            <div className="note-menu-textsize" role="group" aria-label="文字サイズ">
+              <Icon name="textSize" />
+              <span className="note-menu-textsize-label">
+                文字サイズ <span className="note-menu-textsize-value">{textSizeInfo(textSize).label}</span>
+              </span>
+              <button
+                className="icon-btn"
+                onClick={() => changeTextSize(-1)}
+                disabled={textSize === TEXT_SIZES[0].name}
+                aria-label="文字を小さく"
+                title={withShortcut('文字を小さく', 'textSmaller')}
+              >
+                <Icon name="minus" />
+              </button>
+              <button
+                className="icon-btn"
+                onClick={() => changeTextSize(1)}
+                disabled={textSize === TEXT_SIZES[TEXT_SIZES.length - 1].name}
+                aria-label="文字を大きく"
+                title={withShortcut('文字を大きく', 'textBigger')}
+              >
+                <Icon name="plus" />
+              </button>
+            </div>
             <button role="menuitem" onClick={() => void exportNote()}>
               <Icon name="download" />
               書き出す(PDF・Word など)
@@ -856,6 +866,8 @@ export function NoteView({
           }}
         />
       )}
+
+      {helpOpen && <NoteHelp side={layout.toolbarTop} mouse={layout.toolbarTop} onClose={() => setHelpOpen(false)} />}
 
       {designOpen && note && (
         <DesignPanel

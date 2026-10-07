@@ -82,7 +82,7 @@
 }
 .search-note-title .is-match {
   text-decoration: underline;
-  text-decoration-color: var(--accent);
+  text-decoration-color: var(--accent-ink);
   text-decoration-thickness: 2px;
 }
 .search-cover {
@@ -135,7 +135,7 @@
   padding: 4px 8px;
   border: 0;
   background: transparent;
-  color: var(--accent);
+  color: var(--accent-ink);
   font-size: 13px;
   cursor: pointer;
 }

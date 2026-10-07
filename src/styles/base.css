@@ -4,13 +4,29 @@
  *
  * 「紙の上の色」(文字・線・文字色・マーカー)は、紙の明るさに合わせて .tone-light / .tone-dark でも切り替える。
  * 背景色を選んだノートは、ダークモードでもその色のまま表示するため(例:ダークモードで白い紙 → 文字は濃い色)
+ *
+ * アクセントカラー(アプリ 1.1.0〜。ライト=ライトブルー、ダーク=ライトパープル)は役割で分ける:
+ *   --accent      塗り(主なボタン・チェック)。明るい色なので、上の文字は --on-accent(濃い色)にする
+ *   --on-accent   --accent の上の文字・アイコン
+ *   --accent-ink  背景や紙の上に線・文字・アイコンで使うアクセント(読みやすいよう濃さを変えたもの)
+ *   --accent-soft 選択中の項目の背景
+ * 読みやすさ(コントラスト比)は tests/themeColors.test.ts で確かめている
  */
 :root {
-  --accent: #c0783a;
+  --accent: #8ccbf0;
+  --on-accent: #0b3554;
+  /* 控えめなボタン(キャンセル・あとで など):白い背景・面の上でもボタンとわかる塗りと枠 */
+  --btn-bg: #eaeff5;
+  --btn-bg-hover: #dde4ed;
+  --btn-border: #939fb0;
+  /* いくつかから1つを選ぶボタンの、選んでいない項目の地の色 */
+  --seg-bg: #ffffff;
   --danger: #c2413b;
-  --shadow: 0 1px 2px rgb(60 45 20 / 0.06), 0 6px 18px rgb(60 45 20 / 0.08);
-  --backdrop: rgb(40 30 20 / 0.3);
-  --shelf-board: #d9c7a8;
+  --shadow: 0 1px 2px rgb(30 45 70 / 0.08), 0 6px 18px rgb(30 45 70 / 0.1);
+  /* 紙の影:白い背景の上の白い紙でも境目がわかるよう、少し強め */
+  --paper-shadow: 0 1px 3px rgb(30 45 70 / 0.14), 0 8px 24px rgb(30 45 70 / 0.12);
+  --backdrop: rgb(20 30 45 / 0.3);
+  --shelf-board: #d5dde7;
   --radius: 12px;
   --font: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP',
     'Yu Gothic UI', Meiryo, sans-serif;
@@ -31,15 +47,17 @@
 /* 紙の上の色:明るい紙 */
 :root,
 .tone-light {
-  --bg: #f6f1e7;
-  --accent-soft: #f3e3d1;
-  --surface: #fffdf8;
-  --paper: #fffefb;
-  --paper-edge: #e8dfcf;
-  --ink: #2f3540;
-  --ink-soft: #6b7280;
-  --ink-faint: #a8a29e;
-  --line: #e6dccb;
+  --bg: #ffffff;
+  --accent-ink: #1e6fa8;
+  --accent-soft: #e2f1fb;
+  --surface: #f5f7fa;
+  --paper: #ffffff;
+  /* 紙の縁:白い背景と白い紙の境目がわかる濃さ */
+  --paper-edge: #cfd8e3;
+  --ink: #2b3340;
+  --ink-soft: #5f6b7a;
+  --ink-faint: #9ba5b1;
+  --line: #e1e6ed;
   /* 文字色(palette.ts の色名と対応) */
   --tc-gray: #787774;
   --tc-brown: #9f6b53;
@@ -62,11 +80,17 @@
 
 /* ---- ダークモード ---- */
 :root[data-theme='dark'] {
-  --accent: #d9925a;
-  --danger: #e06a62;
+  --accent: #c4b5fd;
+  --on-accent: #261a4d;
+  --btn-bg: #4a4a53;
+  --btn-bg-hover: #55555f;
+  --btn-border: #8a8896;
+  --seg-bg: #2f2f35;
+  --danger: #ff8a80;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 18px rgb(0 0 0 / 0.35);
+  --paper-shadow: 0 1px 3px rgb(0 0 0 / 0.35), 0 8px 24px rgb(0 0 0 / 0.3);
   --backdrop: rgb(0 0 0 / 0.5);
-  --shelf-board: #3d3328;
+  --shelf-board: #4a4853;
   /* 付箋は少し落ち着いた色に(文字は濃い色のまま) */
   --st-yellow: #e9dc94;
   --st-pink: #e8c3d0;
@@ -80,15 +104,17 @@
 /* 紙の上の色:暗い紙 */
 :root[data-theme='dark'],
 .tone-dark {
-  --bg: #1b1a18;
-  --accent-soft: #4a3626;
-  --surface: #252320;
-  --paper: #2a2825;
-  --paper-edge: #3a3631;
-  --ink: #e8e4dc;
-  --ink-soft: #a8a29a;
-  --ink-faint: #6f6a63;
-  --line: #3a3631;
+  /* 背景はグレー。紙はマーカーの色が見えるよう、背景より暗くする */
+  --bg: #36363c;
+  --accent-ink: #cbbdff;
+  --accent-soft: #4b4363;
+  --surface: #3f3f46;
+  --paper: #2a2a2f;
+  --paper-edge: #54525d;
+  --ink: #ecebf0;
+  --ink-soft: #bfbcc7;
+  --ink-faint: #85828e;
+  --line: #4d4b55;
   --tc-gray: #9b9a97;
   --tc-brown: #c49a82;
   --tc-red: #ff7369;
@@ -107,10 +133,28 @@
   --mk-gray: #45433f;
 }
 
+/*
+ * 紙の明るさがアプリと違うとき(ライトモードで暗い紙・ダークモードで明るい紙)の線・文字のアクセント。
+ * アプリの色合い(ライト=青・ダーク=紫)のまま、紙の上で読める濃さにする
+ */
+:root[data-theme='light'] .tone-dark {
+  --accent-ink: #8ccbf0;
+}
+:root[data-theme='dark'] .tone-light {
+  --accent-ink: #6b4fd0;
+}
+
 /* 紙の明るさを切り替えた所では、受け継いだ文字の色も紙に合わせ直す */
 .tone-light,
 .tone-dark {
   color: var(--ink);
+}
+/* チェックボックスなどの部品の色も紙の明るさに合わせる(ダークモードの白い紙で黒く塗られないように) */
+.tone-light {
+  color-scheme: light;
+}
+.tone-dark {
+  color-scheme: dark;
 }
 
 *,
@@ -178,16 +222,20 @@ button {
   min-height: 42px;
   padding: 8px 16px;
   border-radius: 10px;
-  border: 1px solid var(--line);
-  background: var(--surface);
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--ink);
   cursor: pointer;
   font-size: 15px;
   line-height: 1.3;
 }
+.btn--plain:hover:not(:disabled) {
+  background: var(--btn-bg-hover);
+}
 .btn--primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 .btn--danger {
   background: var(--surface);
@@ -196,7 +244,7 @@ button {
 }
 .btn:focus-visible,
 .icon-btn:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-ink);
   outline-offset: 2px;
 }
 
@@ -274,7 +322,7 @@ button {
   text-overflow: ellipsis;
 }
 .sidebar-star {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .sidebar-trash {
   display: flex;
@@ -408,6 +456,6 @@ button {
   font-size: 16px;
 }
 .dialog-input:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-ink);
   outline-offset: 1px;
 }

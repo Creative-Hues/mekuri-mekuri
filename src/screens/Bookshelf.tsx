@@ -15,11 +15,15 @@ import type { Note } from '../db/db'
 import { createNote, getShelfNotes, setFavorite, setNoteOrder } from '../db/repo'
 import { shelfHistory } from '../history/shelfHistory'
 import { fullOrder, moveInSection, shelfSections, type SectionName, type ShelfSections } from '../shelf/order'
-import { matchShortcut, withShortcut } from '../editor/shortcuts'
+import { matchShortcut } from '../editor/shortcuts'
 import { href, navigate } from '../router'
 import { Icon } from '../components/Icon'
 import { Cover } from '../components/Cover'
 import { openSearch } from '../search/openSearch'
+import { ButtonTips } from '../help/ButtonTips'
+import { useLayoutMode } from '../layout/useLayoutMode'
+import { ShelfHeaderButton, shelfButtonAttrs } from './shelfButtons'
+import { ShelfHelp } from './ShelfHelp'
 
 /** 入力欄の中にいるか(本棚の Ctrl+Z を横取りしないため) */
 const isEditing = (t: EventTarget | null) => {
@@ -38,6 +42,8 @@ export function Bookshelf() {
   useEffect(() => setLocal(null), [notes])
   const sections = useMemo(() => local ?? shelfSections(notes ?? []), [local, notes])
   const byId = useMemo(() => new Map((notes ?? []).map((n) => [n.id, n])), [notes])
+  const layout = useLayoutMode()
+  const [helpOpen, setHelpOpen] = useState(false)
 
   // 元に戻す/やり直し(Ctrl+Z / Ctrl+Shift+Z、Macは⌘)
   useEffect(() => {
@@ -79,36 +85,26 @@ export function Bookshelf() {
     <div className="shelf">
       <header className="shelf-header">
         <h1 className="app-title">めくりめくり</h1>
+        {/* ボタンの名前・説明は shelfButtons.tsx の一覧から(ヘルプと同じ情報) */}
         <div className="shelf-actions">
-          <button
-            className="icon-btn"
-            onClick={() => void shelfHistory.undo()}
-            disabled={!shelfHistory.canUndo()}
-            aria-label="元に戻す"
-            title={withShortcut('元に戻す', 'undo')}
-          >
-            <Icon name="undo" />
-          </button>
-          <button
-            className="icon-btn"
-            onClick={() => void shelfHistory.redo()}
-            disabled={!shelfHistory.canRedo()}
-            aria-label="やり直し"
-            title={withShortcut('やり直し', 'redo')}
-          >
-            <Icon name="redo" />
-          </button>
-          <button className="icon-btn" onClick={openSearch} aria-label="全ノート検索" title={withShortcut('全ノート検索', 'search')}>
-            <Icon name="search" />
-          </button>
-          <a className="icon-btn" href={href.trash()} aria-label="ゴミ箱" title="ゴミ箱">
-            <Icon name="trash" />
-          </a>
-          <a className="icon-btn" href={href.settings()} aria-label="設定" title="設定">
-            <Icon name="settings" />
-          </a>
+          <ShelfHeaderButton btn="undo" onClick={() => void shelfHistory.undo()} disabled={!shelfHistory.canUndo()} />
+          <ShelfHeaderButton btn="redo" onClick={() => void shelfHistory.redo()} disabled={!shelfHistory.canRedo()} />
+          <ShelfHeaderButton btn="search" onClick={openSearch} />
+          <ShelfHeaderButton btn="trash" href={href.trash()} />
+          <ShelfHeaderButton btn="settings" href={href.settings()} />
+          <ShelfHeaderButton btn="help" onClick={() => setHelpOpen(true)} />
         </div>
       </header>
+
+      {/* マウスを乗せた・長押ししたボタンの名前 */}
+      <ButtonTips scope=".shelf" />
+
+      {helpOpen && (
+        // 本棚はスクロールするので、ヘルプは画面に固定した枠の中に出す
+        <div className="overlay-fixed">
+          <ShelfHelp side={layout.toolbarTop} mouse={layout.toolbarTop} onClose={() => setHelpOpen(false)} />
+        </div>
+      )}
 
       {hasFavorites && (
         <section className="shelf-section" aria-label="お気に入り">
@@ -136,7 +132,7 @@ export function Bookshelf() {
           onFavorite={(n) => void toggleFavorite(n)}
           first={
             <li className="shelf-item">
-              <button className="book book--new" onClick={() => void create()}>
+              <button className="book book--new" onClick={() => void create()} {...shelfButtonAttrs('newNote')}>
                 <span className="book-new-inner">
                   <Icon name="plus" size={28} />
                   <span>新しいノート</span>
@@ -202,13 +198,14 @@ function BookItem({ note, onFavorite }: { note: Note; onFavorite: () => void }) 
       className={`shelf-item${isDragging ? ' is-dragging' : ''}`}
       style={{ transform: CSS.Translate.toString(transform), transition }}
     >
-      <a className="book" href={href.note(note.id)} aria-label={`「${title}」を開く`}>
+      <a className="book" href={href.note(note.id)} aria-label={`「${title}」を開く`} {...shelfButtonAttrs('openNote')}>
         <Cover title={note.title} design={note.design} />
       </a>
       <div className="book-foot">
         <button
           ref={setActivatorNodeRef}
           className="drag-handle"
+          {...shelfButtonAttrs('reorder')}
           aria-label={`「${title}」を移動`}
           title="ドラッグして並び替え"
           {...attributes}
@@ -218,6 +215,7 @@ function BookItem({ note, onFavorite }: { note: Note; onFavorite: () => void }) 
         </button>
         <button
           className={`book-star${note.favorite ? ' is-on' : ''}`}
+          {...shelfButtonAttrs('favorite')}
           onClick={onFavorite}
           aria-pressed={note.favorite}
           aria-label={note.favorite ? `「${title}」をお気に入りから外す` : `「${title}」をお気に入りにする`}

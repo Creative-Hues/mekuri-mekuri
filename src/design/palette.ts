@@ -75,18 +75,21 @@ export const COVER_COLORS: readonly DesignColor[] = [
   { name: 'lavender', label: '藤', hex: '#cdbfe3', tone: 'light' },
   { name: 'cream', label: '生成り', hex: '#efe6d2', tone: 'light' },
   { name: 'charcoal', label: '墨', hex: '#3a3a3e', tone: 'dark' },
+  // 白・黒(アプリ 1.1.0〜)。白はライトモード、黒はダークモードの背景に溶け込まないよう、
+  // 表紙に薄い縁を付ける(cover.css の .cover--color-white / .cover--color-black)
+  { name: 'white', label: '白', hex: '#ffffff', tone: 'light' },
+  { name: 'black', label: '黒', hex: '#1a1a1a', tone: 'dark' },
 ]
 
+/** 新しいノートの表紙の色をランダムに選ぶときの候補(白・黒は選ばない) */
+export const RANDOM_COVER_COLORS = COVER_COLORS.filter((c) => c.name !== 'white' && c.name !== 'black')
+
 /**
- * 表紙の柄の色(サブ色、アプリ 1.1.0〜)。表紙の色に白と黒を足したもの。
+ * 表紙の柄の色(サブ色、アプリ 1.1.0〜)。表紙の色(白・黒を含む)と同じ。
  * このほかに auto(なじむ色:ベース色に合わせた半透明の色。1.0.0 までの柄の色)がある
  */
 export const SUB_COLOR_AUTO = 'auto'
-export const SUB_COLORS: readonly DesignColor[] = [
-  ...COVER_COLORS,
-  { name: 'white', label: '白', hex: '#ffffff', tone: 'light' },
-  { name: 'black', label: '黒', hex: '#2b2b2b', tone: 'dark' },
-]
+export const SUB_COLORS: readonly DesignColor[] = COVER_COLORS
 
 const byName = (list: readonly DesignColor[]) => new Map(list.map((c) => [c.name, c]))
 const paperMap = byName(PAPER_COLORS)

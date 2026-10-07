@@ -41,6 +41,12 @@
   justify-content: center;
   text-align: center;
 }
+/* 中央上(左右の中央・上寄せ。1.1.0〜) */
+.cover--topCenter {
+  align-items: flex-start;
+  justify-content: center;
+  text-align: center;
+}
 /* 左下 */
 .cover--bottomLeft {
   align-items: flex-end;
@@ -133,4 +139,76 @@
   background: rgb(255 255 255 / 0.9);
   color: #3a3530;
   border-radius: 2px;
+}
+
+/* ---- タイトルの文字色(自動・白・黒。Cover.tsx の cover--text-<名前>) ---- */
+/* 自動(cover--text-auto)は上のとおり(1.0.0 までと同じ)。白・黒を選んだときは、ラベル・帯の色も文字に合わせる */
+
+/* 白い文字:白いラベル・帯を暗くする */
+.cover--text-white.cover--band .cover-title,
+.cover--text-white.cover--label .cover-title,
+.cover--text-white.cover--spine .cover-title {
+  background: rgb(28 28 34 / 0.74);
+  border-color: rgb(255 255 255 / 0.22);
+  color: var(--cover-text);
+}
+.cover--text-white.cover--bottomBand .cover-title {
+  background: rgb(0 0 0 / 0.5);
+  color: var(--cover-text);
+}
+/* 黒い文字:暗い帯(下の帯)を明るくする */
+.cover--text-black.cover--band .cover-title,
+.cover--text-black.cover--label .cover-title,
+.cover--text-black.cover--spine .cover-title {
+  color: var(--cover-text);
+}
+.cover--text-black.cover--bottomBand .cover-title {
+  background: rgb(255 255 255 / 0.82);
+  color: var(--cover-text);
+}
+
+/*
+ * 柄の上でも読めるよう、文字に薄い影(縁取り)を付ける(白い文字には暗い影、黒い文字には明るい影)。
+ * ラベル・帯の上の文字は、下が無地なので付けない
+ */
+.cover--halo .cover-title {
+  text-shadow: var(--cover-halo);
+}
+.cover--halo.cover--band .cover-title,
+.cover--halo.cover--label .cover-title,
+.cover--halo.cover--spine .cover-title,
+.cover--halo.cover--bottomBand .cover-title {
+  text-shadow: none;
+}
+
+/* ---- 白・黒の表紙(表紙の色 white / black) ---- */
+/*
+ * 白い表紙はライトモードの白い背景に、黒い表紙はダークモードの背景に溶け込むので、
+ * 内側に薄い縁を付けて輪郭がわかるようにする(本棚・ゴミ箱・デザインの見本・リンクのカードすべて)
+ */
+.cover--color-white {
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.18);
+}
+.cover--color-black {
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.22);
+}
+/* 背表紙の影(表紙の色を暗くして描いている)は、黒い表紙では見えないので明るくする */
+.cover--color-black::before {
+  background: rgb(255 255 255 / 0.1);
+}
+/* 下の帯(暗い帯)も、黒い表紙では明るめにして帯とわかるようにする */
+.cover--color-black.cover--text-auto.cover--bottomBand .cover-title,
+.cover--color-black.cover--text-white.cover--bottomBand .cover-title {
+  background: rgb(255 255 255 / 0.16);
+}
+/* 白い文字のラベル・帯(暗いラベル)も、黒い表紙では少し明るくして見分けられるようにする */
+.cover--color-black.cover--text-white.cover--band .cover-title,
+.cover--color-black.cover--text-white.cover--label .cover-title,
+.cover--color-black.cover--text-white.cover--spine .cover-title {
+  background: rgb(255 255 255 / 0.16);
+}
+/* 白い表紙の下の帯(自動・白い文字):薄い帯だと白い文字が読みにくいので、濃くする */
+.cover--color-white.cover--text-auto.cover--bottomBand .cover-title,
+.cover--color-white.cover--text-white.cover--bottomBand .cover-title {
+  background: rgb(0 0 0 / 0.58);
 }

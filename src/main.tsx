@@ -5,6 +5,7 @@ import { requestPersist } from './db/persist'
 import { purgeExpired } from './db/repo'
 import { cleanupImages } from './images/store'
 import { initTheme } from './theme/theme'
+import { initTextSize } from './theme/textSize'
 import './styles/base.css'
 import './styles/editor.css'
 import './styles/note.css'
@@ -17,6 +18,9 @@ import './styles/print.css'
 
 // ダークモード(端末に合わせる/ライト/ダーク)
 initTheme()
+
+// 文字サイズ(ノートの中身の文字の大きさ。端末ごとの設定)
+initTextSize()
 
 // データを消されにくくするようブラウザに頼む
 void requestPersist()

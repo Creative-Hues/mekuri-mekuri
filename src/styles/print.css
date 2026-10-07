@@ -4,6 +4,8 @@
  */
 .print-root {
   display: none;
+  /* PDF には文字サイズの設定を反映しない(いつも標準の大きさ) */
+  --text-zoom: 1;
 }
 
 @media print {

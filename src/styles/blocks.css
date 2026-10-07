@@ -46,7 +46,7 @@
   margin: 0;
 }
 .table-block .selectedCell {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-ink);
   outline-offset: -2px;
 }
 /* セルの背景色(マーカーと同じ色名) */
@@ -75,8 +75,8 @@
   user-select: none;
 }
 .table-add:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--accent-ink);
+  color: var(--accent-ink);
   background: var(--accent-soft);
 }
 .table-add--col {
@@ -118,7 +118,7 @@
   color: var(--ink-faint);
 }
 .image-block.is-selected img {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--accent-ink);
   outline-offset: 2px;
 }
 
@@ -143,10 +143,10 @@
   cursor: pointer;
 }
 .note-link-card:hover {
-  border-color: var(--accent);
+  border-color: var(--accent-ink);
 }
 .note-link.is-selected .note-link-card {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-ink);
   outline-offset: 1px;
 }
 .note-link.is-broken .note-link-card {
@@ -206,7 +206,7 @@
 @keyframes sticky-flash {
   0%,
   40% {
-    outline: 3px solid var(--accent);
+    outline: 3px solid var(--accent-ink);
     outline-offset: 2px;
   }
   100% {

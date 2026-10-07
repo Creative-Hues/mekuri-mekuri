@@ -28,6 +28,9 @@ const svg = (body: string, w: number, h: number) =>
 /** 倍率を掛けた長さ(px)。小数は2桁までにする */
 const px = (n: number, s: number) => `${Math.round(n * s * 100) / 100}px`
 
+/** はっきりした色(#rrggbb)か。なじむ色は半透明の rgba(...) */
+const isSolidInk = (ink: string) => /^#[0-9a-f]{6}$/i.test(ink)
+
 /** 縦の縞(太さ w・繰り返しの幅 period) */
 const stripes = (deg: number, ink: string, w: number, period: number, s: number) =>
   `repeating-linear-gradient(${deg}deg, ${ink} 0 ${px(w, s)}, transparent ${px(w, s)} ${px(period, s)})`
@@ -58,7 +61,22 @@ export const COVER_PATTERNS: readonly CoverPattern[] = [
   {
     name: 'gingham',
     label: 'ギンガム',
-    css: (ink, s) => ({ backgroundImage: `${stripes(0, ink, 8, 16, s)}, ${stripes(90, ink, 8, 16, s)}` }),
+    css: (ink, s) =>
+      isSolidInk(ink)
+        ? {
+            // はっきりした色:縦横の帯はベース色とサブ色の中間(サブ色を半分の濃さで重ねる)、
+            // 帯の重なる所はサブ色そのもの。1つの四角(タイル)で描く
+            backgroundImage: svg(
+              `<rect x='0' y='0' width='16' height='8' fill='${ink}' fill-opacity='0.5'/>` +
+                `<rect x='0' y='0' width='8' height='16' fill='${ink}' fill-opacity='0.5'/>` +
+                `<rect x='0' y='0' width='8' height='8' fill='${ink}'/>`,
+              16,
+              16,
+            ),
+            backgroundSize: `${px(16, s)} ${px(16, s)}`,
+          }
+        : // なじむ色(半透明):帯を2枚重ねると、重なる所が自然に濃くなる(1.0.0 までと同じ見た目)
+          { backgroundImage: `${stripes(0, ink, 8, 16, s)}, ${stripes(90, ink, 8, 16, s)}` },
   },
   {
     name: 'grid',
@@ -101,6 +119,7 @@ export interface CoverLayout {
 export const COVER_LAYOUTS: readonly CoverLayout[] = [
   { name: 'topLeft', label: '左上' },
   { name: 'center', label: '中央' },
+  { name: 'topCenter', label: '中央上' }, // 1.1.0〜
   { name: 'bottomLeft', label: '左下' },
   { name: 'bottomRight', label: '右下' },
   { name: 'band', label: '帯' },
@@ -174,8 +193,46 @@ export const patternInk = (tone: Tone) => (tone === 'dark' ? 'rgba(255,255,255,0
 /** 柄を描く色。auto(なじむ色)はベース色の明るさで決め、それ以外は選んだ色 */
 export const subColorInk = (name: string, baseTone: Tone) => subColor(name)?.hex ?? patternInk(baseTone)
 
-/** 表紙のタイトルの色 */
+/** 表紙のタイトルの色(自動のとき):暗い表紙には白、明るい表紙には濃い色 */
 export const coverTextColor = (tone: Tone) => (tone === 'dark' ? '#ffffff' : '#3a3530')
+
+/** 表紙のタイトルの文字色(v5〜)。auto は 1.0.0 までと同じ(表紙の色の明るさで決める) */
+export const COVER_TEXT_COLORS = [
+  { name: 'auto', label: '自動' },
+  { name: 'white', label: '白' },
+  { name: 'black', label: '黒' },
+] as const
+
+export type CoverTextColorName = (typeof COVER_TEXT_COLORS)[number]['name']
+
+/** 黒を選んだときの文字の色(真っ黒より少しやわらかく) */
+const TITLE_BLACK = '#26231f'
+
+/**
+ * タイトルの文字の色と、その明るさ(影・ラベルの色を合わせるため)。
+ * light:明るい文字(白)、dark:暗い文字(黒)
+ */
+export function coverTitleInk(textColor: string, baseTone: Tone): { color: string; ink: Tone } {
+  if (textColor === 'white') return { color: '#ffffff', ink: 'light' }
+  if (textColor === 'black') return { color: TITLE_BLACK, ink: 'dark' }
+  const color = coverTextColor(baseTone)
+  return { color, ink: baseTone === 'dark' ? 'light' : 'dark' }
+}
+
+/**
+ * タイトルを柄の上でも読めるようにする薄い影(縁取り)。
+ * 白い文字には暗い影、黒い文字には明るい影
+ */
+export const coverTitleHalo = (ink: Tone) =>
+  ink === 'light'
+    ? '0 0 1px rgb(0 0 0 / 0.55), 0 0 4px rgb(0 0 0 / 0.45), 0 0 8px rgb(0 0 0 / 0.25)'
+    : '0 0 1px rgb(255 255 255 / 0.8), 0 0 4px rgb(255 255 255 / 0.7), 0 0 8px rgb(255 255 255 / 0.4)'
+
+/**
+ * 影を付けるか。今までと同じ見た目を保つため、「自動」の無地の表紙には付けない
+ * (柄があるとき・文字色を選んだときだけ付ける)
+ */
+export const coverTitleNeedsHalo = (pattern: string, textColor: string) => pattern !== 'plain' || textColor !== 'auto'
 
 export const coverPattern = (name: string | undefined) => COVER_PATTERNS.find((p) => p.name === name)
 export const patternScale = (name: string | undefined) => PATTERN_SCALES.find((p) => p.name === name)

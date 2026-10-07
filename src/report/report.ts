@@ -26,10 +26,12 @@ export interface ReportInfo {
   standalone: boolean
   /** 明るさの設定(端末に合わせる・ライト・ダーク)と、実際の表示 */
   theme: string
+  /** 文字サイズの設定(小〜特大) */
+  textSize: string
 }
 
 /** 今の端末の情報を集める */
-export function collectReportInfo(themeLabel: string): ReportInfo {
+export function collectReportInfo(themeLabel: string, textSizeLabel: string): ReportInfo {
   const standalone =
     window.matchMedia?.('(display-mode: standalone)').matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true
@@ -40,6 +42,7 @@ export function collectReportInfo(themeLabel: string): ReportInfo {
     screen: { width: window.innerWidth, height: window.innerHeight, dpr: window.devicePixelRatio || 1 },
     standalone,
     theme: themeLabel,
+    textSize: textSizeLabel,
   }
 }
 
@@ -50,6 +53,7 @@ export function deviceText(info: ReportInfo): string {
     `画面:${info.screen.width}×${info.screen.height}(倍率 ${info.screen.dpr})`,
     `起動のしかた:${info.standalone ? 'ホーム画面から' : 'ブラウザから'}`,
     `明るさ:${info.theme}`,
+    `文字サイズ:${info.textSize}`,
     `データ構造:${info.schemaVersion}`,
   ].join('\n')
 }

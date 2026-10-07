@@ -11,7 +11,7 @@ import {
   patternInk,
   subColorInk,
 } from '../src/design/cover'
-import { BORDER_COLORS, BORDER_WIDTHS, COVER_COLORS, PAPER_COLORS, SUB_COLORS } from '../src/design/palette'
+import { BORDER_COLORS, BORDER_WIDTHS, COVER_COLORS, PAPER_COLORS, RANDOM_COVER_COLORS, SUB_COLORS } from '../src/design/palette'
 import { legacyDesign, legacyDesignV3, newNoteDesign, normalizeDesign, upgradeDesignToV5 } from '../src/design/defaults'
 import { paperTone, resolveTheme } from '../src/theme/theme'
 import type { NoteDesign } from '../src/db/db'
@@ -67,6 +67,35 @@ describe('表紙のテンプレート', () => {
     expect(stripe.css('#000', 1.6).backgroundImage).toContain('9.6px 28.8px')
   })
 
+  describe('ギンガム', () => {
+    const gingham = COVER_PATTERNS.find((p) => p.name === 'gingham')!
+    const decode = (css: { backgroundImage?: string }) => decodeURIComponent(css.backgroundImage ?? '')
+
+    it('なじむ色では 1.0.0 と同じ(半透明の帯を縦横に重ねる)', () => {
+      const ink = patternInk('dark')
+      expect(gingham.css(ink, 1).backgroundImage).toBe(
+        `repeating-linear-gradient(0deg, ${ink} 0 8px, transparent 8px 16px), ` +
+          `repeating-linear-gradient(90deg, ${ink} 0 8px, transparent 8px 16px)`,
+      )
+    })
+
+    it('はっきりした色では、縦横の帯がベース色とサブ色の中間(半分の濃さ)、重なる所がサブ色', () => {
+      const css = gingham.css('#2f4a6d', 1)
+      const body = decode(css)
+      // 横の帯・縦の帯:サブ色を半分の濃さで
+      expect(body).toContain(`<rect x='0' y='0' width='16' height='8' fill='#2f4a6d' fill-opacity='0.5'/>`)
+      expect(body).toContain(`<rect x='0' y='0' width='8' height='16' fill='#2f4a6d' fill-opacity='0.5'/>`)
+      // 重なる所:サブ色そのもの(帯の上に描く)
+      expect(body).toMatch(/fill-opacity='0.5'\/><rect x='0' y='0' width='8' height='8' fill='#2f4a6d'\/><\/svg>/)
+      expect(css.backgroundSize).toBe('16px 16px')
+    })
+
+    it('はっきりした色でも柄の大きさで変わる', () => {
+      expect(gingham.css('#2f4a6d', 0.6).backgroundSize).toBe('9.6px 9.6px')
+      expect(gingham.css('#2f4a6d', 1.6).backgroundSize).toBe('25.6px 25.6px')
+    })
+  })
+
   it('柄はサブ色で描かれる', () => {
     const stripe = COVER_PATTERNS.find((p) => p.name === 'stripe')!
     expect(stripe.css(subColorInk('white', 'dark'), 1).backgroundImage).toContain('#ffffff')
@@ -79,8 +108,9 @@ describe('表紙のテンプレート', () => {
 })
 
 describe('サブ色(柄の色)', () => {
-  it('表紙の色12色+白+黒。名前が重ならない', () => {
-    expect(names(SUB_COLORS)).toEqual([...names(COVER_COLORS), 'white', 'black'])
+  it('表紙の色(白・黒を含む)と同じ。名前が重ならない', () => {
+    expect(names(SUB_COLORS)).toEqual(names(COVER_COLORS))
+    expect(names(SUB_COLORS)).toEqual(expect.arrayContaining(['white', 'black']))
     expect(unique(names(SUB_COLORS))).toBe(true)
     for (const c of SUB_COLORS) expect(c.hex).toMatch(/^#[0-9a-f]{6}$/)
   })
@@ -92,7 +122,7 @@ describe('サブ色(柄の色)', () => {
 
   it('色を選ぶとその色、知らない名前はなじむ色', () => {
     expect(subColorInk('navy', 'light')).toBe('#2f4a6d')
-    expect(subColorInk('black', 'dark')).toBe('#2b2b2b')
+    expect(subColorInk('black', 'dark')).toBe('#1a1a1a')
     expect(subColorInk('rainbow', 'dark')).toBe(patternInk('dark'))
   })
 })
@@ -164,7 +194,7 @@ describe('デザインの既定値と読み直し', () => {
       paper: null,
       border: { color: 'brown', width: 'none' },
       cover: {
-        pattern: 'plain', color: 'slate', subColor: 'auto', patternScale: 'medium', layout: 'topLeft', font: 'gothicBold',
+        pattern: 'plain', color: 'slate', subColor: 'auto', patternScale: 'medium', textColor: 'auto', layout: 'topLeft', font: 'gothicBold',
       },
       bodyFont: 'cover',
     })
@@ -182,7 +212,8 @@ describe('デザインの既定値と読み直し', () => {
 
   it('新しいノートの表紙の色は、用意した色の中から選ばれる。サブ色はなじむ色、本文は表紙と同じ', () => {
     expect(newNoteDesign(() => 0).cover.color).toBe(COVER_COLORS[0].name)
-    expect(newNoteDesign(() => 0.999).cover.color).toBe(COVER_COLORS.at(-1)!.name)
+    // 最後の候補は白・黒の前の色(白・黒は選ばない)
+    expect(newNoteDesign(() => 0.999).cover.color).toBe(RANDOM_COVER_COLORS.at(-1)!.name)
     expect(newNoteDesign(() => 0)).toMatchObject({
       bodyFont: 'cover',
       cover: { subColor: 'auto', patternScale: 'medium', pattern: 'plain' },
@@ -200,7 +231,7 @@ describe('デザインの既定値と読み直し', () => {
       paper: null,
       border: { color: 'blue', width: 'none' },
       cover: {
-        pattern: 'dots', color: 'slate', subColor: 'auto', patternScale: 'medium', layout: 'topLeft', font: 'mincho',
+        pattern: 'dots', color: 'slate', subColor: 'auto', patternScale: 'medium', textColor: 'auto', layout: 'topLeft', font: 'mincho',
       },
       bodyFont: 'cover',
     })
@@ -216,7 +247,9 @@ describe('デザインの既定値と読み直し', () => {
     const d: NoteDesign = {
       paper: 'navy',
       border: { color: 'gold', width: 'thick' },
-      cover: { pattern: 'wave', color: 'wine', subColor: 'white', patternScale: 'large', layout: 'vertical', font: 'maru' },
+      cover: {
+        pattern: 'wave', color: 'wine', subColor: 'white', patternScale: 'large', textColor: 'black', layout: 'vertical', font: 'maru',
+      },
       bodyFont: 'mincho',
     }
     expect(normalizeDesign(d)).toEqual(d)
@@ -236,7 +269,7 @@ describe('デザインの移し替え(v4 → v5)', () => {
       paper: 'cream',
       border: { color: 'gold', width: 'thin' },
       cover: {
-        pattern: 'dots', color: 'wine', layout: 'band', font: 'minchoBold', subColor: 'auto', patternScale: 'medium',
+        pattern: 'dots', color: 'wine', layout: 'band', font: 'minchoBold', subColor: 'auto', patternScale: 'medium', textColor: 'auto',
       },
       bodyFont: 'cover',
     })

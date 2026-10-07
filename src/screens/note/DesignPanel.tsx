@@ -7,6 +7,7 @@ import {
   COVER_FONTS,
   COVER_LAYOUTS,
   COVER_PATTERNS,
+  COVER_TEXT_COLORS,
   PATTERN_SCALES,
   bodyFontKind,
   fontKindFamily,
@@ -96,14 +97,18 @@ export function DesignPanel({
           ))}
         </div>
 
+        {/* 表紙の見本は上に固定し、選択肢だけをスクロールする(選びながら見本を見られるように) */}
+        {tab === 'cover' && (
+          <div className="design-preview">
+            <span className="design-preview-cover">
+              <Cover title={title} design={design} />
+            </span>
+          </div>
+        )}
+
         <div className="toc-scroll design-scroll">
           {tab === 'cover' ? (
             <>
-              <div className="design-preview">
-                <span className="design-preview-cover">
-                  <Cover title={title} design={design} />
-                </span>
-              </div>
 
               <DesignGroup label="ベース色">
                 {COVER_COLORS.map((c) => (
@@ -149,6 +154,7 @@ export function DesignPanel({
                   >
                     <span
                       className="design-tile-pattern"
+                      data-color={design.cover.color}
                       style={
                         {
                           backgroundColor: coverColor(design.cover.color)!.hex,
@@ -190,6 +196,22 @@ export function DesignPanel({
                   />
                 ))}
               </DesignGroup>
+
+              <DesignGroup label="タイトルの文字色">
+                {COVER_TEXT_COLORS.map((c) => (
+                  <CoverChoice
+                    key={c.name}
+                    label={c.label}
+                    title={title}
+                    design={sample({ textColor: c.name })}
+                    selected={design.cover.textColor === c.name}
+                    onClick={() => setCover({ textColor: c.name })}
+                  />
+                ))}
+              </DesignGroup>
+              <p className="design-note">
+                「自動」は表紙の色に合わせて白か濃い色にします。柄の上の文字には、読みやすいよう薄い影が付きます。
+              </p>
 
               <DesignGroup label="書体">
                 {COVER_FONTS.map((f) => (

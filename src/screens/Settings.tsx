@@ -13,8 +13,10 @@ import { Icon } from '../components/Icon'
 import { useDialog } from '../components/Dialog'
 import { SHORTCUTS, shortcutText } from '../editor/shortcuts'
 import { THEME_OPTIONS, setThemePref, useTheme, useThemePref } from '../theme/theme'
+import { TEXT_SIZES, setTextSize, textSizeInfo, useTextSize } from '../theme/textSize'
 import { BACKUP_MOVE_NOTICE } from '../content/notices'
 import { openOnboarding } from '../onboarding/onboarding'
+import { useLayoutMode } from '../layout/useLayoutMode'
 import { buildReportUrl, collectReportInfo, deviceText } from '../report/report'
 
 function formatDate(ms: number): string {
@@ -29,6 +31,10 @@ export function Settings() {
   const [persisted, setPersisted] = useState<boolean | null>(null)
   const themePref = useThemePref()
   const theme = useTheme()
+  const textSize = useTextSize()
+  // ショートカットキーの一覧:PC(マウス)では開いた状態、スマホ(タッチ)では閉じた状態から
+  const mouse = useLayoutMode().toolbarTop
+  const [shortcutsOpen, setShortcutsOpen] = useState(mouse)
 
   useEffect(() => {
     void isPersisted().then(setPersisted)
@@ -90,7 +96,10 @@ export function Settings() {
   /** 不具合報告:送る情報を見せてから、入力済みの Googleフォームを開く */
   const doReport = async () => {
     const prefLabel = THEME_OPTIONS.find((o) => o.value === themePref)?.label ?? themePref
-    const info = collectReportInfo(`${prefLabel}(表示:${theme === 'dark' ? 'ダーク' : 'ライト'})`)
+    const info = collectReportInfo(
+      `${prefLabel}(表示:${theme === 'dark' ? 'ダーク' : 'ライト'})`,
+      textSizeInfo(textSize).label,
+    )
     const url = buildReportUrl(info)
     const ok = await dialog.confirm({
       title: '不具合を報告する',
@@ -154,6 +163,28 @@ export function Settings() {
             </button>
           ))}
         </div>
+
+        <h3 className="settings-subhead">文字サイズ</h3>
+        <p className="settings-note">
+          ノートの本文・見出し・表・付箋の文字の大きさです。この端末だけの設定で、PDF の書き出しには反映されません。
+          {/* ショートカットの説明は PC(マウス)だけ */}
+          {mouse
+            ? `ノートの「…」メニューや、${shortcutText('textBigger')}・${shortcutText('textSmaller')} でも変えられます。`
+            : 'ノートの「…」メニューでも変えられます。'}
+        </p>
+        <div className="segmented" role="radiogroup" aria-label="文字サイズ">
+          {TEXT_SIZES.map((s) => (
+            <button
+              key={s.name}
+              role="radio"
+              aria-checked={textSize === s.name}
+              className={`segmented-btn${textSize === s.name ? ' is-selected' : ''}`}
+              onClick={() => setTextSize(s.name)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="settings-section">
@@ -203,20 +234,38 @@ export function Settings() {
       </section>
 
       <section className="settings-section">
-        <h2>ショートカットキー(PC)</h2>
-        <p className="settings-note">キーボードをつないだ端末で使えます。日本語キーボードでも同じキーで使えます。</p>
-        <dl className="shortcut-list">
-          {SHORTCUTS.map((s) => (
-            <div key={s.id} className="settings-row">
-              <dt>{s.label}</dt>
-              <dd>
-                {s.combos.map((_, i) => (
-                  <kbd key={i}>{shortcutText(s.id, i)}</kbd>
-                ))}
-              </dd>
-            </div>
-          ))}
-        </dl>
+        {/* 押すと開く折りたたみ式。スマホ(タッチ)では閉じた状態、PC(マウス)では開いた状態から始める */}
+        <h2 className="settings-fold-head">
+          <button
+            type="button"
+            className="settings-fold"
+            aria-expanded={shortcutsOpen}
+            aria-controls="shortcut-list"
+            onClick={() => setShortcutsOpen((o) => !o)}
+          >
+            <span>ショートカットキー(PC)</span>
+            <span className={`settings-fold-icon${shortcutsOpen ? ' is-open' : ''}`}>
+              <Icon name="next" size={18} />
+            </span>
+          </button>
+        </h2>
+        {shortcutsOpen && (
+          <div id="shortcut-list">
+            <p className="settings-note">キーボードをつないだ端末で使えます。日本語キーボードでも同じキーで使えます。</p>
+            <dl className="shortcut-list">
+              {SHORTCUTS.map((s) => (
+                <div key={s.id} className="settings-row">
+                  <dt>{s.label}</dt>
+                  <dd>
+                    {s.combos.map((_, i) => (
+                      <kbd key={i}>{shortcutText(s.id, i)}</kbd>
+                    ))}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
       </section>
 
       <section className="settings-section">
@@ -225,7 +274,7 @@ export function Settings() {
           <li>ノート(文章・画像・付箋・デザイン)はこの端末のブラウザの中だけに保存し、外部のサーバーには送りません。</li>
           <li>アカウント登録・ログイン・利用状況の収集(アクセス解析)はありません。</li>
           <li>
-            不具合報告は、Googleフォーム(Googleのサービス)を通して送られます。送られるのは、フォームに書いた内容と、アプリのバージョン・端末の情報(ブラウザとOSの種類・画面の大きさ・起動のしかた・明るさの設定)だけで、ノートの中身やタイトルは送られません。フォームに送った内容は、Googleのプライバシーポリシーに沿って扱われます。
+            不具合報告は、Googleフォーム(Googleのサービス)を通して送られます。送られるのは、フォームに書いた内容と、アプリのバージョン・端末の情報(ブラウザとOSの種類・画面の大きさ・起動のしかた・明るさと文字サイズの設定)だけで、ノートの中身やタイトルは送られません。フォームに送った内容は、Googleのプライバシーポリシーに沿って扱われます。
           </li>
           <li>アプリ本体は GitHub Pages から配信されます(ノートのデータは送られません)。</li>
           <li>バックアップや書き出しのファイルは、この端末に保存されます。ファイルの保管・共有はご自身で管理してください。</li>

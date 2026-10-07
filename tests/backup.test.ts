@@ -167,7 +167,7 @@ describe('v3 のバックアップ(お気に入り・ゴミ箱・デザイン)',
     const backup = parseBackup(v3File())
     expect(backup.notes[0].favorite).toBe(true)
     expect(backup.notes[0].design.cover).toEqual({
-      pattern: 'dots', color: 'navy', layout: 'label', font: 'mincho', subColor: 'auto', patternScale: 'medium',
+      pattern: 'dots', color: 'navy', layout: 'label', font: 'mincho', subColor: 'auto', patternScale: 'medium', textColor: 'auto',
     })
     expect(backup.notes[0].design.bodyFont).toBe('cover')
     expect(backup.notes[1].deletedAt).toBe(500)

@@ -117,7 +117,7 @@ describe('v5 のバックアップ(本文の書体・サブ色・柄の大きさ
     expect(backup.schemaVersion).toBe(5)
     const [a, b] = backup.notes
     expect(a.design.cover).toEqual({
-      pattern: 'plain', color: 'slate', layout: 'topLeft', font: 'mincho', subColor: 'auto', patternScale: 'medium',
+      pattern: 'plain', color: 'slate', layout: 'topLeft', font: 'mincho', subColor: 'auto', patternScale: 'medium', textColor: 'auto',
     })
     expect(a.design.bodyFont).toBe('cover')
     expect(b.design.cover.pattern).toBe('dots')

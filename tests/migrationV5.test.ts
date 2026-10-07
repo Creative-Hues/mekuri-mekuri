@@ -64,6 +64,7 @@ describe('データ移行 v4 → v5', () => {
       expect(n.design.bodyFont).toBe('cover')
       expect(n.design.cover.subColor).toBe('auto')
       expect(n.design.cover.patternScale).toBe('medium')
+      expect(n.design.cover.textColor).toBe('auto') // タイトルの文字色は自動(今までと同じ)
       expect(n.updatedAt).toBe(2) // 更新日時は変えない
     }
 

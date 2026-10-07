@@ -1,10 +1,21 @@
 import type { NoteDesign } from '../db/db'
-import { BODY_FONTS, COVER_FONTS, COVER_LAYOUTS, COVER_PATTERNS, PATTERN_SCALES, type BodyFontName, type PatternScaleName } from './cover'
+import {
+  BODY_FONTS,
+  COVER_FONTS,
+  COVER_LAYOUTS,
+  COVER_PATTERNS,
+  COVER_TEXT_COLORS,
+  PATTERN_SCALES,
+  type BodyFontName,
+  type CoverTextColorName,
+  type PatternScaleName,
+} from './cover'
 import {
   BORDER_COLORS,
   BORDER_WIDTHS,
   COVER_COLORS,
   PAPER_COLORS,
+  RANDOM_COVER_COLORS,
   SUB_COLORS,
   SUB_COLOR_AUTO,
   type BorderWidthName,
@@ -24,7 +35,7 @@ export const legacyDesignV3 = () => ({
 const REMOVED_PATTERNS = new Set(['ichimatsu', 'seigaiha', 'uroko'])
 
 /**
- * デザインを v5 の形にする(本文の書体・サブ色・柄の大きさを足し、なくした柄を無地にする)。
+ * デザインを v5 の形にする(本文の書体・サブ色・柄の大きさ・タイトルの文字色を足し、なくした柄を無地にする)。
  * DB の移し替え・バックアップファイルの読み込みの両方で使う。何度通しても同じ結果になる。
  * 知らない項目・値はそのまま残す(表示のときに normalizeDesign で既定値になる)
  */
@@ -42,6 +53,8 @@ export function upgradeDesignToV5(raw: unknown): NoteDesign {
       // なじむ色:1.0.0 までと同じ半透明の柄の色
       subColor: cover.subColor ?? SUB_COLOR_AUTO,
       patternScale: cover.patternScale ?? 'medium',
+      // タイトルの文字色:自動(1.0.0 までと同じ)
+      textColor: cover.textColor ?? 'auto',
     },
   } as NoteDesign
 }
@@ -58,7 +71,8 @@ export const legacyDesign = (): NoteDesign => upgradeDesignToV5(legacyDesignV3()
  */
 export function newNoteDesign(random: () => number = Math.random, avoidColor?: string): NoteDesign {
   const d = legacyDesign()
-  const choices = COVER_COLORS.filter((c) => c.name !== avoidColor)
+  // 白・黒は選ばない(RANDOM_COVER_COLORS)
+  const choices = RANDOM_COVER_COLORS.filter((c) => c.name !== avoidColor)
   d.cover.color = choices[Math.floor(random() * choices.length)]?.name ?? 'slate'
   return d
 }
@@ -74,6 +88,7 @@ const scaleNames = names(PATTERN_SCALES)
 const layoutNames = names(COVER_LAYOUTS)
 const fontNames = names(COVER_FONTS)
 const bodyFontNames = names(BODY_FONTS)
+const textColorNames = names(COVER_TEXT_COLORS)
 
 const pick = (v: unknown, allowed: Set<string>, fallback: string): string =>
   typeof v === 'string' && allowed.has(v) ? v : fallback
@@ -99,6 +114,7 @@ export function normalizeDesign(raw: unknown): NoteDesign {
       color: pick(cover.color, coverColorNames, base.cover.color),
       subColor: pick(cover.subColor, subColorNames, base.cover.subColor),
       patternScale: pick(cover.patternScale, scaleNames, base.cover.patternScale) as PatternScaleName,
+      textColor: pick(cover.textColor, textColorNames, base.cover.textColor) as CoverTextColorName,
       layout: pick(cover.layout, layoutNames, base.cover.layout),
       font: pick(cover.font, fontNames, base.cover.font),
     },

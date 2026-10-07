@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
-    <meta name="theme-color" content="#f6f1e7" />
+    <meta name="theme-color" content="#ffffff" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -13,13 +13,13 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
     <title>めくりめくり</title>
     <meta name="description" content="シンプルでデザイン性の高いノートアプリ。ページを左右にめくって書き、表紙や紙の色を選べます。ノートは端末の中だけに保存します。" />
-    <!-- SNS などで共有したときの表示(OGP)。画像はアプリのアイコン -->
+    <!-- SNS などで共有したときの表示(OGP)。画像はアプリのアイコン(角が透明だと黒く表示されるサービスがあるため、四角い maskable 版を使う) -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="めくりめくり" />
     <meta property="og:title" content="めくりめくり" />
     <meta property="og:description" content="シンプルでデザイン性の高いノートアプリ。ノートは端末の中だけに保存します。" />
     <meta property="og:url" content="https://creative-hues.github.io/mekuri-mekuri/" />
-    <meta property="og:image" content="https://creative-hues.github.io/mekuri-mekuri/pwa-512x512.png" />
+    <meta property="og:image" content="https://creative-hues.github.io/mekuri-mekuri/maskable-icon-512x512.png" />
     <meta property="og:locale" content="ja_JP" />
     <meta name="twitter:card" content="summary" />
     <script>
@@ -28,6 +28,11 @@
         var p = localStorage.getItem('mekuri-theme')
         var dark = p === 'dark' || (p !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
         document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+      } catch (e) {}
+      // 文字サイズ:表示の途中で大きさが変わらないよう、描画の前に決める(src/theme/textSize.ts と同じ値)
+      try {
+        var z = { xs: 0.9, m: 1, l: 1.15, xl: 1.3, xxl: 1.5 }[localStorage.getItem('mekuri-text-size')]
+        if (z) document.documentElement.style.setProperty('--text-zoom', String(z))
       } catch (e) {}
     </script>
   </head>
