@@ -130,7 +130,7 @@ describe('出力用の形(model)', () => {
     ]
     const note = buildExportNote('  ', [page(doc(p(t('本文'))), stickies)], linkText)
     expect(note.title).toBe('無題のノート')
-    expect(note.pages[0].stickies.map((s) => s[0].kind === 'paragraph' && s[0].runs[0].text)).toEqual(['上', '下'])
+    expect(note.pages[0].stickies.map((s) => s.blocks[0].kind === 'paragraph' && s.blocks[0].runs[0].text)).toEqual(['上', '下'])
   })
 })
 
@@ -161,7 +161,7 @@ describe('テキストの出力', () => {
         'a|b',
         'other:pg',
         '',
-        '【付箋】',
+        '【付箋(黄)】',
         'メモ',
         '',
         '── 2ページ ──',
@@ -213,7 +213,7 @@ describe('Markdown の出力', () => {
         '',
         'other:pg',
         '',
-        '**付箋**',
+        '**付箋(黄)**',
         '',
         '> メモ',
         '',

@@ -20,6 +20,7 @@ import {
 import type { LineStyleName } from '../editor/palette'
 import { MARKER_HEX, TEXT_HEX } from './colors'
 import type { Block, ExportNote, Run } from './model'
+import { stickyLabel } from './stickyLabel'
 
 /**
  * Word(.docx)の出力。見出し・装飾(太字・取り消し線・文字色・マーカー・ライン)・リスト・表・画像・Webリンクを出す。
@@ -177,12 +178,12 @@ export function buildDocx(note: ExportNote, images: Map<string, DocxImage>): Doc
     // ページごとに改ページ(1ページ目はタイトルの下から)
     if (i > 0) children.push(new Paragraph({ children: [new PageBreak()] }))
     children.push(...blocksToDocx(page.blocks, images, listBase))
-    if (page.stickies.length > 0) {
-      children.push(new Paragraph({ spacing: { before: 240 }, children: [new TextRun({ text: '付箋', bold: true })] }))
-      page.stickies.forEach((s, j) => {
-        if (j > 0) children.push(new Paragraph({}))
-        children.push(...blocksToDocx(s, images, listBase))
-      })
+    // 付箋は1つずつ太字の「付箋(色)」の見出しを付ける(読み込むときに色を戻せるように)
+    for (const s of page.stickies) {
+      children.push(
+        new Paragraph({ spacing: { before: 240 }, children: [new TextRun({ text: stickyLabel(s.color), bold: true })] }),
+      )
+      children.push(...blocksToDocx(s.blocks, images, listBase))
     }
   })
 

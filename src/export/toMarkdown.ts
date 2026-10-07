@@ -1,4 +1,5 @@
 import type { Block, ExportNote, Run } from './model'
+import { stickyLabel } from './stickyLabel'
 
 /**
  * Markdown(.md)の出力。他のノートアプリへ移す用。
@@ -117,17 +118,15 @@ export function toMarkdown(note: ExportNote): string {
     if (i > 0) out.push('---')
     const body = blocksToMd(page.blocks)
     if (body.trim()) out.push(body)
-    if (page.stickies.length > 0) {
-      out.push('**付箋**')
-      // 付箋は1つずつ引用(>)にする
-      for (const s of page.stickies) {
-        out.push(
-          blocksToMd(s)
-            .split('\n')
-            .map((l) => (l ? `> ${l}` : '>'))
-            .join('\n'),
-        )
-      }
+    // 付箋は1つずつ「**付箋(色)**」の見出し+引用(>)にする(読み込むときに色を戻せるように)
+    for (const s of page.stickies) {
+      out.push(`**${stickyLabel(s.color)}**`)
+      out.push(
+        blocksToMd(s.blocks)
+          .split('\n')
+          .map((l) => (l ? `> ${l}` : '>'))
+          .join('\n'),
+      )
     }
   })
   // 行末の空白は消す(改行は「\」で表しているので、空白は意味を持たない)

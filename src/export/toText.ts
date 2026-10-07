@@ -1,4 +1,5 @@
 import { plainText, type Block, type ExportNote } from './model'
+import { stickyLabel } from './stickyLabel'
 
 /**
  * テキスト(.txt)の出力。文字だけを書き出す(色・装飾・画像は出さない)
@@ -51,12 +52,10 @@ export function toText(note: ExportNote): string {
   note.pages.forEach((page, i) => {
     out.push(`── ${i + 1}ページ ──`, '')
     out.push(...blocksToLines(page.blocks))
-    if (page.stickies.length > 0) {
-      out.push('', '【付箋】')
-      page.stickies.forEach((s, j) => {
-        if (j > 0) out.push('')
-        out.push(...blocksToLines(s))
-      })
+    // 付箋は1つずつ「【付箋(色)】」の見出しを付ける(読み込むときに色を戻せるように)
+    for (const s of page.stickies) {
+      out.push('', `【${stickyLabel(s.color)}】`)
+      out.push(...blocksToLines(s.blocks))
     }
     out.push('')
   })

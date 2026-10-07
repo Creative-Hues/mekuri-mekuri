@@ -52,6 +52,15 @@ export const SHELF_BOOK_BUTTONS = {
     description: '新しいノートを作って開きます。表紙の色は自動で選ばれ、あとからデザインで変えられます。',
     glyph: { icon: 'plus' },
   },
+  importFile: {
+    name: 'ファイルから読み込む',
+    description: {
+      touch: 'テキスト(.txt)・Markdown(.md)・Word(.docx)のファイルを選ぶと、新しいノートとして読み込みます。今あるノートには混ぜません。',
+      mouse:
+        'テキスト(.txt)・Markdown(.md)・Word(.docx)のファイルを選ぶと、新しいノートとして読み込みます。本棚にファイルをドラッグ&ドロップしても読み込めます。今あるノートには混ぜません。',
+    },
+    glyph: { icon: 'upload' },
+  },
   openNote: {
     name: 'ノートを開く',
     description: { touch: '表紙を押すと、そのノートを開きます。', mouse: '表紙をクリックすると、そのノートを開きます。' },

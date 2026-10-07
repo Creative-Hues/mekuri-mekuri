@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/core'
-import { db, emptyDoc, newId, type Note, type NoteDesign, type Page, type Sticky } from './db'
+import { db, emptyDoc, newId, type ImageRecord, type Note, type NoteDesign, type Page, type Sticky } from './db'
 import { newNoteDesign } from '../design/defaults'
 
 /** ゴミ箱に入れてから完全に削除するまでの日数 */
@@ -25,8 +25,20 @@ function blankPage(noteId: string, now: number): Page {
 
 /** ノートを作る(1ページ目つき)。新しいノートは本棚の先頭に置く */
 export async function createNote(title = ''): Promise<Note> {
+  return createNoteWithPages(title, [{ content: emptyDoc(), stickies: [] }])
+}
+
+/**
+ * 中身のあるページつきでノートを作る(ファイルの読み込みで使う)。新しいノートは本棚の先頭に置く。
+ * images:一緒に保存する画像(途中で失敗したら、ノートも画像も残さない)
+ */
+export async function createNoteWithPages(
+  title: string,
+  pages: { content: JSONContent; stickies: Sticky[] }[],
+  images: ImageRecord[] = [],
+): Promise<Note> {
   const now = Date.now()
-  return db.transaction('rw', db.notes, db.pages, async () => {
+  return db.transaction('rw', db.notes, db.pages, db.images, async () => {
     const first = await db.notes.orderBy('order').first()
     // 直前に作ったノート(ゴミ箱のものも含む)と同じ表紙の色にしない
     const all = await db.notes.toArray()
@@ -45,8 +57,16 @@ export async function createNote(title = ''): Promise<Note> {
       createdAt: now,
       updatedAt: now,
     }
+    await db.images.bulkAdd(images)
     await db.notes.add(note)
-    await db.pages.add(blankPage(note.id, now))
+    await db.pages.bulkAdd(
+      (pages.length ? pages : [{ content: emptyDoc(), stickies: [] }]).map((p, order) => ({
+        ...blankPage(note.id, now),
+        order,
+        content: p.content,
+        stickies: p.stickies,
+      })),
+    )
     return note
   })
 }

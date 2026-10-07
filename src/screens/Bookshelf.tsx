@@ -24,6 +24,7 @@ import { ButtonTips } from '../help/ButtonTips'
 import { useLayoutMode } from '../layout/useLayoutMode'
 import { ShelfHeaderButton, shelfButtonAttrs } from './shelfButtons'
 import { ShelfHelp } from './ShelfHelp'
+import { useFileImport } from './FileImport'
 
 /** 入力欄の中にいるか(本棚の Ctrl+Z を横取りしないため) */
 const isEditing = (t: EventTarget | null) => {
@@ -44,6 +45,7 @@ export function Bookshelf() {
   const byId = useMemo(() => new Map((notes ?? []).map((n) => [n.id, n])), [notes])
   const layout = useLayoutMode()
   const [helpOpen, setHelpOpen] = useState(false)
+  const fileImport = useFileImport()
 
   // 元に戻す/やり直し(Ctrl+Z / Ctrl+Shift+Z、Macは⌘)
   useEffect(() => {
@@ -99,6 +101,9 @@ export function Bookshelf() {
       {/* マウスを乗せた・長押ししたボタンの名前 */}
       <ButtonTips scope=".shelf" />
 
+      {/* ファイルの読み込み(選ぶ画面・ドロップの案内・読み込み中の表示) */}
+      {fileImport.elements}
+
       {helpOpen && (
         // 本棚はスクロールするので、ヘルプは画面に固定した枠の中に出す
         <div className="overlay-fixed">
@@ -131,20 +136,35 @@ export function Bookshelf() {
           onReorder={(a, o) => void reorder(a, o)}
           onFavorite={(n) => void toggleFavorite(n)}
           first={
-            <li className="shelf-item">
-              <button className="book book--new" onClick={() => void create()} {...shelfButtonAttrs('newNote')}>
-                <span className="book-new-inner">
-                  <Icon name="plus" size={28} />
-                  <span>新しいノート</span>
-                </span>
-              </button>
-            </li>
+            <>
+              <li className="shelf-item">
+                <button className="book book--new" onClick={() => void create()} {...shelfButtonAttrs('newNote')}>
+                  <span className="book-new-inner">
+                    <Icon name="plus" size={28} />
+                    <span>新しいノート</span>
+                  </span>
+                </button>
+              </li>
+              <li className="shelf-item">
+                <button
+                  className="book book--new"
+                  onClick={fileImport.open}
+                  disabled={fileImport.busy}
+                  {...shelfButtonAttrs('importFile')}
+                >
+                  <span className="book-new-inner">
+                    <Icon name="upload" size={28} />
+                    <span>ファイルから<br />読み込む</span>
+                  </span>
+                </button>
+              </li>
+            </>
           }
         />
       </section>
 
       {notes && notes.length === 0 && (
-        <p className="shelf-empty">「新しいノート」から最初のノートを作りましょう。</p>
+        <p className="shelf-empty">「新しいノート」から最初のノートを作りましょう。テキスト・Markdown・Word のファイルは「ファイルから読み込む」でノートにできます。</p>
       )}
     </div>
   )

@@ -544,3 +544,62 @@
 #shortcut-list {
   margin-top: 8px;
 }
+
+/* ---- ファイルの読み込み(本棚) ---- */
+
+/* ファイルをドラッグしている間の案内(画面全体) */
+.import-drop {
+  position: fixed;
+  inset: 12px;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 3px dashed var(--accent-ink);
+  border-radius: 20px;
+  background: var(--bg);
+  opacity: 0.94;
+  color: var(--accent-ink);
+  /* ドロップの判定を邪魔しないように */
+  pointer-events: none;
+  text-align: center;
+  padding: 16px;
+}
+.import-drop-text {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+.import-drop-sub {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.import-busy {
+  justify-content: center;
+  padding: 12px 16px;
+}
+.import-messages,
+.import-results {
+  margin: 0 0 8px;
+  padding-left: 1.2em;
+  font-size: 14px;
+}
+.import-messages li,
+.import-results > li {
+  margin-bottom: 4px;
+}
+.import-results .import-messages {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.import-file {
+  font-weight: 700;
+  word-break: break-all;
+}
+.import-error {
+  color: var(--danger);
+}

@@ -13,6 +13,7 @@
 - 表紙・紙の色・縁のデザイン、お気に入り、ダークモード
 - 全ノート検索、ゴミ箱(30日で自動削除)
 - 書き出し:PDF・Word・Markdown・テキスト
+- 読み込み:テキスト・Markdown・Word のファイルを新しいノートに(PC はドラッグ&ドロップでも)
 - スマホはキーボードのすぐ上のツールバー、PC はショートカットキーで操作
 
 ## 使い方
@@ -42,4 +43,4 @@ npm run build   # 公開用にビルド(dist/)
 
 - main に push すると、GitHub Actions がテストとビルドを行い、GitHub Pages に公開します(テストが失敗したら公開しません)
 - 仕様は `めくりめくり_計画書.md`、作業のルールは `CLAUDE.md`、データ構造は `docs/data-model.md`、公開前の確認項目は `docs/release-checklist.md`
-- 使っている主なライブラリ:React・TipTap(エディタ)・Dexie(IndexedDB)・dnd-kit(ドラッグ)・docx(Word の書き出し)・vite-plugin-pwa
+- 使っている主なライブラリ:React・TipTap(エディタ)・Dexie(IndexedDB)・dnd-kit(ドラッグ)・docx(Word の書き出し)・jszip(Word の読み込み)・marked(Markdown の読み込み)・vite-plugin-pwa

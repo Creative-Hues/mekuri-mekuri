@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/core'
-import type { Page } from '../db/db'
+import type { Page, StickyColor } from '../db/db'
 import {
   isLineStyle,
   isMarkerColor,
@@ -58,10 +58,16 @@ export type Block =
   /** 別ノート・別ページへのリンク(表示用の文字にしたもの) */
   | { kind: 'noteLink'; text: string }
 
+/** 付箋(色は書き出したファイルに書いておき、読み込むときに戻す) */
+export interface ExportSticky {
+  color: StickyColor
+  blocks: Block[]
+}
+
 export interface ExportPage {
   blocks: Block[]
   /** 付箋(1つの付箋が1つの要素)。中身が空の付箋は入れない */
-  stickies: Block[][]
+  stickies: ExportSticky[]
 }
 
 export interface ExportNote {
@@ -227,8 +233,8 @@ export function buildExportNote(title: string, pages: Page[], linkText: LinkText
       stickies: [...(p.stickies ?? [])]
         // 上にある付箋から順に(同じ高さなら左から)
         .sort((a, b) => a.y - b.y || a.x - b.x)
-        .map((s) => contentToBlocks(s.content, linkText))
-        .filter((b) => !isEmptyBlocks(b)),
+        .map((s) => ({ color: s.color, blocks: contentToBlocks(s.content, linkText) }))
+        .filter((s) => !isEmptyBlocks(s.blocks)),
     })),
   }
 }

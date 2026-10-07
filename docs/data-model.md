@@ -189,4 +189,5 @@ TipTap の JSON(`{ type: 'doc', content: [...] }`)。v1 で使うもの:
 - v3(アプリ 0.4.0〜):ノートに `favorite`・`deletedAt`・`design`、ページに `deletedAt`・`deletedIndex` を追加(ゴミ箱・お気に入り・デザイン)。既存のノートは「お気に入りでない・ゴミ箱でない・今までと同じ見た目」に、v2 以前のバックアップファイルも同じく変換する。インデックスは変わらない
 - v4(アプリ 0.5.0〜):`images`(画像)のテーブルを追加し、画像の参照の片付けのために `unusedSince` を持たせた。本文に `table` / `tableRow` / `tableCell` / `tableHeader`・`image`・`noteLink` のノードと `link` の mark を追加。既存のノート・ページは変わらない(移し替えは不要)。v3 以前のバックアップファイルは `images: []` を補って読む
 - (アプリ 1.0.0:meta に `onboardingDoneAt` を追加。スキーマ番号は 4 のまま、移し替えは不要)
+- (アプリ 1.2.0:ファイル(テキスト・Markdown・Word)の読み込みを追加。読み込んだ内容は今の notes・pages・images の形のまま新しいノートとして作るので、スキーマ番号は 5 のまま、移し替えは不要)
 - v5(アプリ 1.1.0〜):ノートの `design` に `bodyFont`(本文の書体)、`design.cover` に `subColor`(サブ色)・`patternScale`(柄の大きさ)・`textColor`(タイトルの文字色)を追加。柄 `ichimatsu` `seigaiha` `uroko` を削除し `wideStripe` を追加。既存のノート・v4 以前のバックアップファイルは「本文は表紙と同じ・なじむ色・中・タイトルの文字色は自動・削除した柄は無地」に移す。インデックスは変わらない
