@@ -5,7 +5,7 @@
  * 「紙の上の色」(文字・線・文字色・マーカー)は、紙の明るさに合わせて .tone-light / .tone-dark でも切り替える。
  * 背景色を選んだノートは、ダークモードでもその色のまま表示するため(例:ダークモードで白い紙 → 文字は濃い色)
  *
- * アクセントカラー(アプリ 1.1.0〜。ライト=ライトブルー、ダーク=ライトパープル)は役割で分ける:
+ * アクセントカラー(アプリ 1.1.0〜。ライト=ライトブルー #8AC2DD、ダーク=ライトパープル #C0A3CA)は役割で分ける:
  *   --accent      塗り(主なボタン・チェック)。明るい色なので、上の文字は --on-accent(濃い色)にする
  *   --on-accent   --accent の上の文字・アイコン
  *   --accent-ink  背景や紙の上に線・文字・アイコンで使うアクセント(読みやすいよう濃さを変えたもの)
@@ -13,8 +13,8 @@
  * 読みやすさ(コントラスト比)は tests/themeColors.test.ts で確かめている
  */
 :root {
-  --accent: #8ccbf0;
-  --on-accent: #0b3554;
+  --accent: #8ac2dd;
+  --on-accent: #0e3348;
   /* 控えめなボタン(キャンセル・あとで など):白い背景・面の上でもボタンとわかる塗りと枠 */
   --btn-bg: #eaeff5;
   --btn-bg-hover: #dde4ed;
@@ -48,8 +48,8 @@
 :root,
 .tone-light {
   --bg: #ffffff;
-  --accent-ink: #1e6fa8;
-  --accent-soft: #e2f1fb;
+  --accent-ink: #2a6f91;
+  --accent-soft: #e3f1f8;
   --surface: #f5f7fa;
   --paper: #ffffff;
   /* 紙の縁:白い背景と白い紙の境目がわかる濃さ */
@@ -80,8 +80,8 @@
 
 /* ---- ダークモード ---- */
 :root[data-theme='dark'] {
-  --accent: #c4b5fd;
-  --on-accent: #261a4d;
+  --accent: #c0a3ca;
+  --on-accent: #2e1a36;
   --btn-bg: #4a4a53;
   --btn-bg-hover: #55555f;
   --btn-border: #8a8896;
@@ -106,8 +106,8 @@
 .tone-dark {
   /* 背景はグレー。紙はマーカーの色が見えるよう、背景より暗くする */
   --bg: #36363c;
-  --accent-ink: #cbbdff;
-  --accent-soft: #4b4363;
+  --accent-ink: #d6c1de;
+  --accent-soft: #4a3f50;
   --surface: #3f3f46;
   --paper: #2a2a2f;
   --paper-edge: #54525d;
@@ -138,10 +138,10 @@
  * アプリの色合い(ライト=青・ダーク=紫)のまま、紙の上で読める濃さにする
  */
 :root[data-theme='light'] .tone-dark {
-  --accent-ink: #8ccbf0;
+  --accent-ink: #8ac2dd;
 }
 :root[data-theme='dark'] .tone-light {
-  --accent-ink: #6b4fd0;
+  --accent-ink: #7a4e8a;
 }
 
 /* 紙の明るさを切り替えた所では、受け継いだ文字の色も紙に合わせ直す */

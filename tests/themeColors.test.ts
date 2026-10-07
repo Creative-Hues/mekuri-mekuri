@@ -126,8 +126,11 @@ describe('配色の指定どおり', () => {
     const [dr, dg, db] = rgb(dark['--accent'])
     expect(db).toBeGreaterThan(dg) // 青と赤が緑より強い=紫
     expect(dr).toBeGreaterThan(dg)
-    expect(luminance(light['--accent'])).toBeGreaterThan(0.45)
-    expect(luminance(dark['--accent'])).toBeGreaterThan(0.45)
+    // 指定の色(ライト #8AC2DD・ダーク #C0A3CA)。どちらも明るい色(相対輝度 0.4 以上)
+    expect(light['--accent']).toBe('#8ac2dd')
+    expect(dark['--accent']).toBe('#c0a3ca')
+    expect(luminance(light['--accent'])).toBeGreaterThan(0.4)
+    expect(luminance(dark['--accent'])).toBeGreaterThan(0.4)
   })
 
   it('画面の上の帯の色(theme-color)は背景と同じ', () => {
@@ -148,6 +151,61 @@ describe('アプリと明るさの違う紙の上のアクセント', () => {
     const ink = vars(":root[data-theme='dark'] .tone-light")['--accent-ink']
     for (const p of PAPER_COLORS.filter((c) => c.tone === 'light')) {
       expect(contrast(ink, p.hex), p.name).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+})
+
+describe('いくつかから1つを選ぶボタンの文字', () => {
+  const screens = readFileSync(join(process.cwd(), 'src/styles/screens.css'), 'utf8')
+  const rules = [...screens.matchAll(/\.segmented-btn\s*\{([^}]*)\}/g)].map((m) => m[1])
+
+  it('文字はボタンの中で折り返さない', () => {
+    expect(rules[0]).toContain('white-space: nowrap')
+    expect(rules[0]).toContain('min-width: 0')
+  })
+
+  it('幅の狭いスマホでは、文字を少し小さくして収める', () => {
+    const narrow = /@media \(max-width: 420px\) \{\s*\.segmented-btn \{([^}]*)\}/.exec(screens)?.[1] ?? ''
+    expect(narrow).toMatch(/font-size: 1[0-3]px/)
+  })
+
+  it('画面の明るさの選択肢は短い表記(自動・ライト・ダーク)', async () => {
+    const { THEME_OPTIONS } = await import('../src/theme/theme')
+    expect(THEME_OPTIONS.map((o) => o.label)).toEqual(['自動', 'ライト', 'ダーク'])
+  })
+})
+
+describe('リストの点・番号・ToDo のチェックボックス(本文と付箋)', () => {
+  const editor = readFileSync(join(process.cwd(), 'src/styles/editor.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  /** セレクタ(カンマ区切りの1つ)に合う規則の中身 */
+  const rule = (selector: string) =>
+    [...editor.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter((m) => m[1].split(',').some((s) => s.trim() === selector))
+      .map((m) => m[2])
+      .join('\n')
+
+  it.each(['.page-editor', '.sticky-editor'])('%s:点・番号・チェックボックスは本文の文字と同じ色(アクセントの色ではない)', (ed) => {
+    expect(rule(`${ed} li::marker`)).toContain('color: var(--ink)')
+    const box = rule(`${ed} ul[data-type='taskList'] input[type='checkbox']`)
+    expect(box).toContain('accent-color: var(--ink)')
+    expect(box).not.toContain('--accent')
+  })
+
+  it('本文の文字の色(--ink)は、ライト・ダークの紙と、色を選んだすべての紙の上で読める', () => {
+    expect(contrast(light['--ink'], light['--paper'])).toBeGreaterThanOrEqual(7)
+    expect(contrast(dark['--ink'], dark['--paper'])).toBeGreaterThanOrEqual(7)
+    // 色を選んだ紙は、紙の明るさで .tone-light / .tone-dark の --ink になる(白い紙は黒、紺の紙は白)
+    for (const p of PAPER_COLORS) {
+      const ink = p.tone === 'light' ? light['--ink'] : dark['--ink']
+      expect(contrast(ink, p.hex), p.name).toBeGreaterThanOrEqual(7)
+    }
+  })
+
+  it('付箋の上でも読める(付箋は明るい紙として .tone-light の文字色になる)', () => {
+    for (const v of [light, dark]) {
+      for (const name of ['yellow', 'pink', 'orange', 'green', 'blue', 'purple']) {
+        expect(contrast(light['--ink'], v[`--st-${name}`]), name).toBeGreaterThanOrEqual(7)
+      }
     }
   })
 })

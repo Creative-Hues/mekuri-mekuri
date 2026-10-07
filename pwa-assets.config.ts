@@ -2,7 +2,7 @@ import { defineConfig, minimal2023Preset } from '@vite-pwa/assets-generator/conf
 
 // public/icon.svg から各サイズのアイコンを作る(npm run icons)
 // アイコンは背景の青(ICON_BG)が全面に塗られた四角なので、余白も同じ青で塗る(標準の白にしない)
-const ICON_BG = '#5bb0e6'
+const ICON_BG = '#8ac2dd'
 
 export default defineConfig({
   preset: {

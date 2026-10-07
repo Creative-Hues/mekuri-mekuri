@@ -333,13 +333,25 @@
 }
 .segmented-btn {
   flex: 1;
+  min-width: 0;
   min-height: 38px;
+  padding: 0 6px;
   border: 0;
   border-radius: 8px;
   background: transparent;
   color: var(--ink-soft);
   font-size: 14px;
+  /* 文字はボタンの中で折り返さない */
+  white-space: nowrap;
   cursor: pointer;
+}
+/* 幅の狭いスマホ:折り返さずに収まるよう、文字と余白を少し小さくする */
+@media (max-width: 420px) {
+  .segmented-btn {
+    padding: 0 3px;
+    font-size: 13px;
+    letter-spacing: -0.01em;
+  }
 }
 .segmented-btn:disabled {
   opacity: 0.45;

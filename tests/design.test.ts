@@ -297,7 +297,7 @@ describe('デザインの移し替え(v4 → v5)', () => {
 })
 
 describe('ダークモードの判定', () => {
-  it('「端末に合わせる」は端末の設定どおり、ライト/ダークは常にその色', () => {
+  it('「自動」は端末の設定どおり、ライト/ダークは常にその色', () => {
     expect(resolveTheme('system', true)).toBe('dark')
     expect(resolveTheme('system', false)).toBe('light')
     expect(resolveTheme('light', true)).toBe('light')

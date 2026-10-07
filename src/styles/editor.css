@@ -52,46 +52,61 @@
   color: var(--ink-soft);
 }
 
-/* リスト */
+/*
+ * リスト(本文と付箋で同じ見た目)。
+ * 箇条書きの点・番号・ToDo のチェックボックスは、本文の文字と同じ色(--ink)にする。
+ * アクセントの色だと紙や表紙の色から浮くため。--ink は紙の明るさ(.tone-light / .tone-dark)に合わせて黒か白になる
+ */
 .page-editor ul,
-.page-editor ol {
+.page-editor ol,
+.sticky-editor ul,
+.sticky-editor ol {
   margin: 0.2em 0;
   padding-left: 1.5em;
 }
-.page-editor li > p {
+.page-editor li > p,
+.sticky-editor li > p {
   margin: 0;
 }
-.page-editor li::marker {
-  color: var(--accent-ink);
+.page-editor li::marker,
+.sticky-editor li::marker {
+  color: var(--ink);
 }
 
 /* ToDoリスト */
-.page-editor ul[data-type='taskList'] {
+.page-editor ul[data-type='taskList'],
+.sticky-editor ul[data-type='taskList'] {
   list-style: none;
   padding-left: 0.2em;
 }
-.page-editor ul[data-type='taskList'] li {
+.page-editor ul[data-type='taskList'] li,
+.sticky-editor ul[data-type='taskList'] li {
   display: flex;
   align-items: flex-start;
   gap: 0.5em;
 }
-.page-editor ul[data-type='taskList'] li > label {
+.page-editor ul[data-type='taskList'] li > label,
+.sticky-editor ul[data-type='taskList'] li > label {
   flex: none;
   user-select: none;
   padding-top: 0.32em;
 }
-.page-editor ul[data-type='taskList'] li > div {
+.page-editor ul[data-type='taskList'] li > div,
+.sticky-editor ul[data-type='taskList'] li > div {
   flex: 1;
   min-width: 0;
 }
-.page-editor ul[data-type='taskList'] input[type='checkbox'] {
+.page-editor ul[data-type='taskList'] input[type='checkbox'],
+.sticky-editor ul[data-type='taskList'] input[type='checkbox'] {
   width: 1.05em;
   height: 1.05em;
   margin: 0;
-  accent-color: var(--accent-ink);
+  /* チェックした箱の色も本文の文字の色(チェックの印の色はブラウザが読みやすい色にする) */
+  accent-color: var(--ink);
   cursor: pointer;
 }
-.page-editor ul[data-type='taskList'] li[data-checked='true'] > div {
+.page-editor ul[data-type='taskList'] li[data-checked='true'] > div,
+.sticky-editor ul[data-type='taskList'] li[data-checked='true'] > div {
   color: var(--ink-faint);
   text-decoration: line-through;
 }

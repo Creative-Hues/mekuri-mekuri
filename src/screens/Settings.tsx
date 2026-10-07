@@ -148,7 +148,7 @@ export function Settings() {
       <section className="settings-section">
         <h2>表示</h2>
         <p className="settings-note">
-          ダークモードにしても、背景色を選んだノートの紙はその色のままです(文字の色は読みやすく調整されます)。
+          「自動」は端末の明るさの設定に合わせます。ダークモードにしても、背景色を選んだノートの紙はその色のままです(文字の色は読みやすく調整されます)。
         </p>
         <div className="segmented" role="radiogroup" aria-label="画面の明るさ">
           {THEME_OPTIONS.map((o) => (

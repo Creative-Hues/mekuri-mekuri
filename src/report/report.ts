@@ -24,7 +24,7 @@ export interface ReportInfo {
   screen: { width: number; height: number; dpr: number }
   /** ホーム画面に追加して開いているか */
   standalone: boolean
-  /** 明るさの設定(端末に合わせる・ライト・ダーク)と、実際の表示 */
+  /** 明るさの設定(自動・ライト・ダーク)と、実際の表示 */
   theme: string
   /** 文字サイズの設定(小〜特大) */
   textSize: string

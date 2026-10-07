@@ -9,7 +9,7 @@ const info: ReportInfo = {
   userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1',
   screen: { width: 390, height: 844, dpr: 3 },
   standalone: true,
-  theme: '端末に合わせる(表示:ダーク)',
+  theme: '自動(表示:ダーク)',
   textSize: '大',
 }
 
@@ -39,7 +39,7 @@ describe('不具合報告のフォーム', () => {
         `ブラウザ・OS:${info.userAgent}`,
         '画面:390×844(倍率 3)',
         '起動のしかた:ホーム画面から',
-        '明るさ:端末に合わせる(表示:ダーク)',
+        '明るさ:自動(表示:ダーク)',
         '文字サイズ:大',
         'データ構造:5',
       ].join('\n'),

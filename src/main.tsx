@@ -16,7 +16,7 @@ import './styles/blocks.css'
 import './styles/search.css'
 import './styles/print.css'
 
-// ダークモード(端末に合わせる/ライト/ダーク)
+// ダークモード(自動=端末に合わせる/ライト/ダーク)
 initTheme()
 
 // 文字サイズ(ノートの中身の文字の大きさ。端末ごとの設定)

@@ -3,7 +3,7 @@ import { paperColor, type Tone } from '../design/palette'
 
 /**
  * ダークモード。
- * 設定(端末に合わせる/ライト/ダーク)はこの端末の localStorage に保存する(ノートのデータではないので
+ * 設定(自動=端末に合わせる/ライト/ダーク)はこの端末の localStorage に保存する(ノートのデータではないので
  * バックアップには入れない)。index.html の小さなスクリプトでも同じキーを読み、画面が一瞬白くなるのを防いでいる
  */
 
@@ -15,7 +15,7 @@ export const THEME_KEY = 'mekuri-theme'
 export const THEME_COLOR: Record<Theme, string> = { light: '#ffffff', dark: '#36363c' }
 
 export const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
-  { value: 'system', label: '端末に合わせる' },
+  { value: 'system', label: '自動' }, // 端末の明るさの設定に合わせる
   { value: 'light', label: 'ライト' },
   { value: 'dark', label: 'ダーク' },
 ]
