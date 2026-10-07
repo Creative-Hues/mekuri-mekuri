@@ -31,6 +31,10 @@ jobs:
       - name: ライブラリを入れる
         run: npm ci
 
+      # テストが失敗したらここで止まり、公開(deploy)へは進まない
+      - name: テスト
+        run: npm test
+
       - name: ビルド
         run: npm run build
 

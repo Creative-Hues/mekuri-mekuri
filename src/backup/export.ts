@@ -2,6 +2,7 @@ import { db, SCHEMA_VERSION } from '../db/db'
 import { META, setMeta } from '../db/meta'
 import { APP_VERSION } from '../version'
 import { toBase64, type Backup } from './format'
+import { downloadBlob } from '../export/download'
 
 function stamp(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0')
@@ -31,13 +32,6 @@ export async function exportBackup(): Promise<void> {
     })),
   }
   const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `mekuri-backup-${stamp(new Date(now))}.json`
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  downloadBlob(blob, `mekuri-backup-${stamp(new Date(now))}.json`)
   await setMeta(META.lastBackupAt, now)
 }

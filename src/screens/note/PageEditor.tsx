@@ -3,6 +3,8 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import type { JSONContent } from '@tiptap/core'
 import { buildExtensions } from '../../editor/extensions'
 import { SKIP_HISTORY_META } from '../../editor/ToggleHeading'
+import { insertImageFiles } from '../../editor/image'
+import { useDialog } from '../../components/Dialog'
 import type { NoteSession } from './session'
 import { BlockHandles } from './BlockHandles'
 import { StickyLayer } from './StickyLayer'
@@ -30,6 +32,7 @@ export function PageContent({ hoverMode, ...props }: Props & { hoverMode: boolea
 
 /** 1ページ分のエディタ */
 function PageEditor({ session, pageId, storedContent }: Props) {
+  const dialog = useDialog()
   const extensions = useMemo(
     () =>
       buildExtensions({
@@ -40,8 +43,21 @@ function PageEditor({ session, pageId, storedContent }: Props) {
           const editor = session.getEditor(pageId)
           return !!editor && session.moveAdjacent(editor, pageId, dir)
         },
+        onImageFiles: (files, pos) => {
+          const editor = session.getEditor(pageId)
+          if (!editor) return
+          void insertImageFiles(
+            editor,
+            files,
+            {
+              closeGroup: () => session.history.closeGroup(),
+              alert: (message) => dialog.alert({ message }),
+            },
+            pos,
+          )
+        },
       }),
-    [session, pageId],
+    [session, pageId, dialog],
   )
 
   const editor = useEditor(

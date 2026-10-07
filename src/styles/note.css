@@ -906,3 +906,14 @@
   border-left-width: 1px;
   border-left-color: var(--paper-edge);
 }
+
+/* ---- 書き出しの形式の説明 ---- */
+.export-help {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+.export-help li + li {
+  margin-top: 2px;
+}

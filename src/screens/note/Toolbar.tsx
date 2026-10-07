@@ -28,7 +28,7 @@ import { useKeyboardOpen } from '../../layout/useKeyboardInset'
 import type { NoteSession } from './session'
 import { useDialog } from '../../components/Dialog'
 import { CELL_MENU_EVENT, insertTable, isInTable, type CellMenuDetail } from '../../editor/table'
-import { insertImageFile } from '../../editor/image'
+import { insertImageFiles } from '../../editor/image'
 import { LINK_DIALOG_EVENT, type LinkDialogDetail } from '../../editor/webLink'
 
 type Panel = 'textColor' | 'marker' | 'line' | 'insert' | null
@@ -90,14 +90,10 @@ export function Toolbar({
   /** 画像を選んだとき:縮小して保存し、カーソルの位置に入れる */
   const onImage = async (file: File) => {
     if (!editor || editor.isDestroyed) return
-    try {
-      session.history.closeGroup()
-      await insertImageFile(editor, file)
-      session.history.closeGroup()
-    } catch (e) {
-      console.error(e)
-      await dialog.alert({ message: '画像を入れられませんでした。別の画像で試してください。' })
-    }
+    await insertImageFiles(editor, [file], {
+      closeGroup: () => session.history.closeGroup(),
+      alert: (message) => dialog.alert({ message }),
+    })
   }
 
   /** カーソルのあるセルのメニューを出す(長押しができないときのため) */

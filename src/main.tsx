@@ -13,6 +13,7 @@ import './styles/sticky.css'
 import './styles/cover.css'
 import './styles/blocks.css'
 import './styles/search.css'
+import './styles/print.css'
 
 // ダークモード(端末に合わせる/ライト/ダーク)
 initTheme()

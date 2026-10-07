@@ -6,6 +6,7 @@ import { isPersisted } from '../db/persist'
 import { exportBackup } from '../backup/export'
 import { BackupError, parseBackup } from '../backup/format'
 import { importAppend, importReplace } from '../backup/import'
+import { confirmReplace } from '../backup/replaceFlow'
 import { href } from '../router'
 import { APP_VERSION } from '../version'
 import { Icon } from '../components/Icon'
@@ -69,12 +70,7 @@ export function Settings() {
     })
     if (!mode) return
     if (mode === 'replace') {
-      const ok = await dialog.confirm({
-        title: '置き換えの確認',
-        message: '今このアプリにあるノートはすべて消え、ファイルの中身に置き換わります。よろしいですか？',
-        okLabel: '置き換える',
-        danger: true,
-      })
+      const ok = await confirmReplace(dialog, await db.notes.count(), exportBackup)
       if (!ok) return
     }
     try {

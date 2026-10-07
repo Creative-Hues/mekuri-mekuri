@@ -361,13 +361,38 @@ button {
   z-index: 40;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 8px 8px 16px;
+  gap: 8px 12px;
+  /* 画面幅に合わせて広げる(広い画面では 480px まで) */
+  width: min(480px, calc(100% - 32px));
+  padding: 10px 10px 10px 16px;
   background: var(--surface);
   border-radius: 14px;
   box-shadow: var(--shadow);
-  max-width: calc(100% - 32px);
   font-size: 14px;
+}
+.update-banner-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.update-banner-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+.update-banner-actions .btn {
+  /* ボタンの文字は折り返さない */
+  white-space: nowrap;
+}
+/* 狭い画面では、文章を上の段・ボタンを下の段に分ける */
+@media (max-width: 480px) {
+  .update-banner {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px;
+  }
+  .update-banner-actions {
+    justify-content: flex-end;
+  }
 }
 .dialog-input {
   display: block;

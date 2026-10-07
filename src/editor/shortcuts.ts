@@ -28,6 +28,7 @@ export type ShortcutId =
   | 'toc'
   | 'link'
   | 'search'
+  | 'print'
 
 interface KeyCombo {
   code: string
@@ -65,6 +66,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'pageList', label: 'ページ一覧を開く', combos: [{ code: 'KeyP', alt: true }] },
   { id: 'link', label: 'Webリンクを付ける', combos: [{ code: 'KeyK' }] },
   { id: 'search', label: '全ノート検索', combos: [{ code: 'KeyF' }] },
+  { id: 'print', label: 'PDF・印刷(ノートを開いているとき)', combos: [{ code: 'KeyP' }] },
 ]
 
 /** Mac(iPad のキーボードを含む)では Ctrl の代わりに ⌘ を使う */

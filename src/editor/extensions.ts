@@ -30,6 +30,8 @@ export interface EditorHooks {
   closeGroup: () => void
   /** カーソルのある行を1つ上/下へ動かす(付箋のエディタでは使わない)。動かしたら true */
   moveLine?: (dir: 'up' | 'down') => boolean
+  /** ほかのアプリから貼り付け・ドロップされた画像ファイル(本文のエディタだけ)。pos はドロップした位置 */
+  onImageFiles?: (files: File[], pos: number | null) => void
 }
 
 /** エディタの中で使うショートカットと、その処理 */
@@ -131,7 +133,7 @@ export function buildExtensions(hooks: EditorHooks): AnyExtension[] {
     MekuriTableRow,
     MekuriTableCell,
     MekuriTableHeader,
-    ImageNode,
+    ImageNode.configure({ onImageFiles: hooks.onImageFiles ?? null }),
     NoteLinkNode,
     WebLinkMenu,
     SearchHighlight,

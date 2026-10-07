@@ -29,6 +29,7 @@ function Shell() {
   const [searchOpen, setSearchOpen] = useState(false)
 
   useBackupReminder()
+  usePreventFileDrop()
 
   // 画面が変わったら開閉式の一覧は閉じる
   useEffect(() => setDrawerOpen(false), [route])
@@ -115,6 +116,31 @@ function useBackupReminder() {
   }, [dialog])
 }
 
+/**
+ * ファイルをエディタの外(余白・付箋など)に落としたとき、ブラウザがその画像を開いて
+ * アプリの画面から離れてしまうのを防ぐ(本文のエディタに落とした画像は imagePaste.ts で受け取る)
+ */
+function usePreventFileDrop() {
+  useEffect(() => {
+    const hasFiles = (e: DragEvent) => !!e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')
+    const inEditor = (e: DragEvent) => e.target instanceof Element && !!e.target.closest('.page-editor')
+    const onDragOver = (e: DragEvent) => {
+      if (!hasFiles(e) || inEditor(e)) return
+      e.preventDefault()
+      e.dataTransfer!.dropEffect = 'none'
+    }
+    const onDrop = (e: DragEvent) => {
+      if (hasFiles(e)) e.preventDefault()
+    }
+    window.addEventListener('dragover', onDragOver)
+    window.addEventListener('drop', onDrop)
+    return () => {
+      window.removeEventListener('dragover', onDragOver)
+      window.removeEventListener('drop', onDrop)
+    }
+  }, [])
+}
+
 /** 新しいバージョンがあるときのお知らせ(勝手には切り替えない) */
 function UpdateBanner() {
   const {
@@ -126,13 +152,15 @@ function UpdateBanner() {
   if (!needRefresh) return null
   return (
     <div className="update-banner" role="status">
-      <span>新しいバージョンがあります</span>
-      <button className="btn btn--primary" onClick={() => void updateServiceWorker(true)}>
-        更新する
-      </button>
-      <button className="btn btn--plain" onClick={() => setNeedRefresh(false)}>
-        あとで
-      </button>
+      <span className="update-banner-text">新しいバージョンがあります</span>
+      <div className="update-banner-actions">
+        <button className="btn btn--plain" onClick={() => setNeedRefresh(false)}>
+          あとで
+        </button>
+        <button className="btn btn--primary" onClick={() => void updateServiceWorker(true)}>
+          更新する
+        </button>
+      </div>
     </div>
   )
 }

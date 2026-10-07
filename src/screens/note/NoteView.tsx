@@ -38,6 +38,9 @@ import { NoteLinkPicker } from './NoteLinkPicker'
 import { setActiveSession, takePendingJump, type SearchJump } from './jump'
 import { findOccurrence } from '../../search/search'
 import { searchHighlightKey } from '../../editor/searchHighlight'
+import { loadExportSource, type ExportSource } from '../../export/load'
+import { exportNoteFile, FORMAT_LABELS, type FileFormat } from '../../export/exportNote'
+import { PrintView } from '../../export/PrintView'
 import { openSearch } from '../../search/openSearch'
 
 /** 表示中のページの前後、これだけの範囲はエディタを作っておく(スワイプ先がすぐ表示されるように) */
@@ -348,6 +351,12 @@ export function NoteView({
         addStickyRef.current()
         return
       }
+      if (shortcut === 'print') {
+        // ブラウザの印刷だと編集画面がそのまま印刷されるので、印刷用の見た目で開く
+        e.preventDefault()
+        void printNoteRef.current()
+        return
+      }
       if (e.key === 'Escape' && session.select.active) {
         e.preventDefault()
         session.setSelectMode(false)
@@ -530,6 +539,66 @@ export function NoteView({
     navigate(href.shelf())
   }
 
+  // ---- 書き出し(PDF・Word・Markdown・テキスト) ----
+
+  const [printJob, setPrintJob] = useState<{ source: ExportSource; job: number } | null>(null)
+
+  /** 書き出す前に、保存待ちの変更を保存してから読む */
+  const loadForExport = async () => {
+    await session.flushAll()
+    return loadExportSource(noteId)
+  }
+
+  const printNote = async () => {
+    try {
+      const source = await loadForExport()
+      if (source) setPrintJob((prev) => ({ source, job: (prev?.job ?? 0) + 1 }))
+    } catch (e) {
+      console.error(e)
+      await dialog.alert({ message: '印刷の準備に失敗しました。' })
+    }
+  }
+  const printNoteRef = useRef(printNote)
+  printNoteRef.current = printNote
+
+  const exportNote = async () => {
+    setMenuOpen(false)
+    const format = await dialog.choose<'pdf' | FileFormat | null>({
+      title: 'ノートを書き出す',
+      message: (
+        <>
+          <p>このノートを、どの形式で書き出しますか？(ゴミ箱のページは入りません)</p>
+          <ul className="export-help">
+            <li>PDF:見た目をほぼそのまま。印刷画面が開くので「PDFとして保存」を選んでください</li>
+            <li>Word:見出し・装飾・リスト・表・画像</li>
+            <li>Markdown:ほかのノートアプリへ移す用(色は消え、画像は「[画像]」になります)</li>
+            <li>テキスト:文字だけ</li>
+          </ul>
+        </>
+      ),
+      cancelValue: null,
+      buttons: [
+        { label: 'キャンセル', value: null, kind: 'plain' },
+        { label: FORMAT_LABELS.txt, value: 'txt', kind: 'plain' },
+        { label: FORMAT_LABELS.md, value: 'md', kind: 'plain' },
+        { label: FORMAT_LABELS.docx, value: 'docx', kind: 'plain' },
+        { label: FORMAT_LABELS.pdf, value: 'pdf', kind: 'primary' },
+      ],
+    })
+    if (!format) return
+    if (format === 'pdf') {
+      await printNote()
+      return
+    }
+    try {
+      const source = await loadForExport()
+      if (source) await exportNoteFile(source, format)
+    } catch (e) {
+      console.error(e)
+      await dialog.alert({ message: '書き出しに失敗しました。' })
+    }
+  }
+
   const toggleFavorite = async () => {
     if (!note) return
     setMenuOpen(false)
@@ -658,6 +727,10 @@ export function NoteView({
             >
               <Icon name="search" />
               全ノート検索
+            </button>
+            <button role="menuitem" onClick={() => void exportNote()}>
+              <Icon name="download" />
+              書き出す(PDF・Word など)
             </button>
             <button role="menuitem" className="is-danger" onClick={() => void removeNote()}>
               <Icon name="trash" />
@@ -809,6 +882,8 @@ export function NoteView({
           paperStyle={paperStyle}
         />
       )}
+
+      {printJob && <PrintView source={printJob.source} job={printJob.job} />}
     </div>
   )
 }

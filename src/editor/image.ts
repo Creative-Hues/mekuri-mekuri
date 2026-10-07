@@ -1,9 +1,11 @@
 import { Node, type Editor } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import type { NodeView } from '@tiptap/pm/view'
+import { TextSelection } from '@tiptap/pm/state'
 import { imageUrl, saveImage } from '../images/store'
 import { resizeImage } from '../images/resize'
 import { placeCursorAfterBlock } from './blockInsert'
+import { canInsertImageAt, imagePastePlugin } from './imagePaste'
 
 /**
  * 画像(1行として扱う)。
@@ -14,9 +16,15 @@ import { placeCursorAfterBlock } from './blockInsert'
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     image: {
-      insertImage: (attrs: { imageId: string; width: number; height: number }) => ReturnType
+      insertImage: (attrs: ImageAttrs) => ReturnType
     }
   }
+}
+
+export interface ImageAttrs {
+  imageId: string
+  width: number
+  height: number
 }
 
 /** 画像の見た目。読み込むまでは画像の縦横比の枠を出しておく(行の位置がずれないように) */
@@ -74,12 +82,23 @@ class ImageView implements NodeView {
   }
 }
 
-export const ImageNode = Node.create({
+export const ImageNode = Node.create<{
+  /** ほかのアプリから貼り付け・ドロップされた画像ファイルを受け取る(imagePaste.ts) */
+  onImageFiles: ((files: File[], pos: number | null) => void) | null
+}>({
   name: 'image',
   group: 'block',
   atom: true,
   selectable: true,
   draggable: false,
+
+  addOptions() {
+    return { onImageFiles: null }
+  },
+
+  addProseMirrorPlugins() {
+    return [imagePastePlugin(() => this.options.onImageFiles ?? undefined)]
+  },
 
   addAttributes() {
     return {
@@ -89,7 +108,7 @@ export const ImageNode = Node.create({
     }
   },
 
-  // コピー・貼り付けはこのアプリの中だけで使う(ほかのアプリの画像の貼り付けは対象外)
+  // このアプリの中でのコピー・貼り付け用。ほかのアプリからの画像は、画像ファイルとして imagePaste.ts で受け取る
   parseHTML() {
     return [{ tag: 'img[data-image-id]' }]
   },
@@ -121,10 +140,74 @@ export const ImageNode = Node.create({
   },
 })
 
-/** 端末から選んだ画像を縮小して保存し、カーソルの位置に入れる */
-export async function insertImageFile(editor: Editor, file: File): Promise<void> {
-  const img = await resizeImage(file)
-  const imageId = await saveImage(img)
+/** 画像ファイルを縮小して保存する。読めなかったファイルは数だけ返す */
+async function prepareImages(files: File[]): Promise<{ images: ImageAttrs[]; failed: number }> {
+  const images: ImageAttrs[] = []
+  let failed = 0
+  for (const file of files) {
+    try {
+      const img = await resizeImage(file)
+      images.push({ imageId: await saveImage(img), width: img.width, height: img.height })
+    } catch (e) {
+      console.error(e)
+      failed++
+    }
+  }
+  return { images, failed }
+}
+
+/**
+ * 画像をまとめて入れる(1回の変更にするので、「元に戻す」1回で全部戻る)。
+ * pos を指定するとその位置(ドロップした所)、なければカーソルの位置
+ */
+export function insertImages(editor: Editor, images: ImageAttrs[], pos: number | null = null): boolean {
+  if (images.length === 0 || editor.isDestroyed) return false
+  let chain = editor.chain().focus()
+  if (pos !== null) {
+    // ドロップした位置の近くの、文字を入れられる所にカーソルを置く
+    chain = chain.command(({ tr }) => {
+      tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(pos, tr.doc.content.size))))
+      return true
+    })
+  }
+  for (const attrs of images) chain = chain.insertImage(attrs)
+  return chain.run()
+}
+
+/** 画像を入れるときに、ノート画面から受け取る処理 */
+export interface ImageInsertUi {
+  /** 「元に戻す」の区切り */
+  closeGroup: () => void
+  alert: (message: string) => Promise<void>
+}
+
+/**
+ * 画像ファイル(端末から選んだもの・貼り付け・ドロップ)を縮小・保存して入れる。
+ * 表の中には入れない
+ */
+export async function insertImageFiles(
+  editor: Editor,
+  files: File[],
+  ui: ImageInsertUi,
+  pos: number | null = null,
+): Promise<void> {
+  if (editor.isDestroyed || files.length === 0) return
+  if (!canInsertImageAt(editor.state, pos ?? editor.state.selection.from)) {
+    await ui.alert('表の中には画像を入れられません。表の外に入れてください。')
+    return
+  }
+  const { images, failed } = await prepareImages(files)
   if (editor.isDestroyed) return
-  editor.chain().focus().insertImage({ imageId, width: img.width, height: img.height }).run()
+  // 縮小している間に文章が変わっていたら、位置がずれるのでカーソルの位置に入れる
+  const at = pos !== null && pos <= editor.state.doc.content.size && canInsertImageAt(editor.state, pos) ? pos : null
+  ui.closeGroup()
+  insertImages(editor, images, at)
+  ui.closeGroup()
+  if (failed > 0) {
+    await ui.alert(
+      files.length === 1
+        ? '画像を入れられませんでした。別の画像で試してください。'
+        : `${failed}枚の画像を入れられませんでした。別の画像で試してください。`,
+    )
+  }
 }
