@@ -112,3 +112,13 @@ describe('ダークモードの判定', () => {
     expect(paperTone('rainbow', 'light')).toBe('light') // 知らない色名は指定なしと同じ
   })
 })
+
+describe('新しいノートの表紙の色', () => {
+  it('避ける色を渡すと、その色は選ばれない(どの乱数でも)', () => {
+    for (const avoid of COVER_COLORS.map((c) => c.name)) {
+      for (const r of [0, 0.25, 0.5, 0.75, 0.999]) {
+        expect(newNoteDesign(() => r, avoid).cover.color).not.toBe(avoid)
+      }
+    }
+  })
+})

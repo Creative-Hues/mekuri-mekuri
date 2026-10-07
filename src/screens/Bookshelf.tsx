@@ -19,6 +19,7 @@ import { matchShortcut, withShortcut } from '../editor/shortcuts'
 import { href, navigate } from '../router'
 import { Icon } from '../components/Icon'
 import { Cover } from '../components/Cover'
+import { openSearch } from '../search/openSearch'
 
 /** 入力欄の中にいるか(本棚の Ctrl+Z を横取りしないため) */
 const isEditing = (t: EventTarget | null) => {
@@ -96,6 +97,9 @@ export function Bookshelf() {
             title={withShortcut('やり直し', 'redo')}
           >
             <Icon name="redo" />
+          </button>
+          <button className="icon-btn" onClick={openSearch} aria-label="全ノート検索" title={withShortcut('全ノート検索', 'search')}>
+            <Icon name="search" />
           </button>
           <a className="icon-btn" href={href.trash()} aria-label="ゴミ箱" title="ゴミ箱">
             <Icon name="trash" />

@@ -28,13 +28,20 @@ export async function createNote(title = ''): Promise<Note> {
   const now = Date.now()
   return db.transaction('rw', db.notes, db.pages, async () => {
     const first = await db.notes.orderBy('order').first()
+    // 直前に作ったノート(ゴミ箱のものも含む)と同じ表紙の色にしない
+    const all = await db.notes.toArray()
+    // (同じ時刻なら、本棚の先頭寄り=あとから作ったほう)
+    const latest = all.reduce<Note | undefined>(
+      (a, n) => (!a || n.createdAt > a.createdAt || (n.createdAt === a.createdAt && n.order < a.order) ? n : a),
+      undefined,
+    )
     const note: Note = {
       id: newId(),
       title,
       order: first ? first.order - 1 : 0,
       favorite: false,
       deletedAt: null,
-      design: newNoteDesign(),
+      design: newNoteDesign(Math.random, latest?.design?.cover?.color),
       createdAt: now,
       updatedAt: now,
     }

@@ -23,7 +23,7 @@ import { createSticky } from '../../editor/sticky'
 import { closedTogglesAround, findHeadingPos } from '../../editor/toc'
 import { SKIP_HISTORY_META } from '../../editor/ToggleHeading'
 import type { Editor } from '@tiptap/core'
-import { href, navigate } from '../../router'
+import { href, navigate, replaceHash } from '../../router'
 import { Icon } from '../../components/Icon'
 import { useDialog } from '../../components/Dialog'
 import { NoteSession } from './session'
@@ -32,6 +32,13 @@ import { Toolbar } from './Toolbar'
 import { PageList } from './PageList'
 import { TocPanel } from './TocPanel'
 import { DesignPanel } from './DesignPanel'
+import { TableMenu } from './TableMenu'
+import { LinkMenu } from './LinkMenu'
+import { NoteLinkPicker } from './NoteLinkPicker'
+import { setActiveSession, takePendingJump, type SearchJump } from './jump'
+import { findOccurrence } from '../../search/search'
+import { searchHighlightKey } from '../../editor/searchHighlight'
+import { openSearch } from '../../search/openSearch'
 
 /** 表示中のページの前後、これだけの範囲はエディタを作っておく(スワイプ先がすぐ表示されるように) */
 const MOUNT_BEHIND = 2
@@ -44,11 +51,33 @@ function isEditing(target: EventTarget | null): boolean {
   return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)
 }
 
+/** 一時的に目立たせておく時間(ミリ秒) */
+const FLASH_MS = 1600
+
+/** 紙の中を、画面上の位置 top(ブラウザの表示領域の座標)が上の方に来るようにスクロールする */
+function scrollPaperTo(scroller: Element, top: number) {
+  const target = top - scroller.getBoundingClientRect().top + scroller.scrollTop - 48
+  scroller.scrollTo({ top: Math.max(0, target), behavior: 'smooth' })
+}
+
+/** pos を囲む閉じたトグル見出しを開く(開閉は元に戻すの対象にしない) */
+function openTogglesAround(editor: Editor, pos: number) {
+  const closed = closedTogglesAround(editor.state.doc, pos)
+  if (!closed.length) return
+  const tr = editor.state.tr
+  for (const p of closed) tr.setNodeMarkup(p, undefined, { ...tr.doc.nodeAt(p)!.attrs, open: true })
+  tr.setMeta(SKIP_HISTORY_META, true)
+  editor.view.dispatch(tr)
+}
+
 export function NoteView({
   noteId,
+  target,
   onToggleSidebar,
 }: {
   noteId: string
+  /** 開いたら表示するページ(ノートへのリンク・検索から)。押すたびに新しいものが来る */
+  target?: { pageId?: string } | null
   /** タブレットで一覧を開閉する(一覧を出さない画面では undefined) */
   onToggleSidebar?: () => void
 }) {
@@ -59,6 +88,8 @@ export function NoteView({
   const [tocOpen, setTocOpen] = useState(false)
   const [designOpen, setDesignOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  /** ノートへのリンクを入れる先のエディタ(選択画面を開いている間) */
+  const [linkPickerFor, setLinkPickerFor] = useState<Editor | null>(null)
   const theme = useTheme()
   const note = useLiveQuery(() => db.notes.get(noteId), [noteId], null)
   const pages = useLiveQuery(() => getPages(noteId), [noteId])
@@ -199,6 +230,67 @@ export function NoteView({
     },
     [session],
   )
+
+  // 検索の前に書きかけを保存できるよう、開いているノートを知らせておく
+  useEffect(() => {
+    setActiveSession(session)
+    return () => setActiveSession(null)
+  }, [session])
+
+  /** 検索で見つかった場所へ:そのページの文字(または付箋)までスクロールし、一時的に目立たせる */
+  const flashJump = useCallback(
+    (jump: SearchJump) => {
+      if (jump.stickyId) {
+        let tries = 0
+        const attempt = () => {
+          const el = scrollerRef.current?.querySelector<HTMLElement>(
+            `[data-page-id="${jump.pageId}"] .sticky[data-sticky-id="${jump.stickyId}"]`,
+          )
+          if (!el) {
+            if (tries++ < 20) setTimeout(attempt, 50)
+            return
+          }
+          const scroller = el.closest('.paper-scroll')
+          if (scroller) scrollPaperTo(scroller, el.getBoundingClientRect().top)
+          el.classList.remove('search-flash-sticky')
+          void el.offsetWidth
+          el.classList.add('search-flash-sticky')
+          setTimeout(() => el.classList.remove('search-flash-sticky'), FLASH_MS)
+        }
+        attempt()
+        return
+      }
+      withEditor(jump.pageId, (editor) => {
+        let range = findOccurrence(editor.state.doc, jump.query, jump.occurrence)
+        if (!range) return
+        openTogglesAround(editor, range.from)
+        range = findOccurrence(editor.state.doc, jump.query, jump.occurrence)
+        if (!range) return
+        editor.view.dispatch(editor.state.tr.setMeta(searchHighlightKey, range))
+        const scroller = editor.view.dom.closest('.paper-scroll')
+        if (scroller) scrollPaperTo(scroller, editor.view.coordsAtPos(range.from).top)
+        setTimeout(() => {
+          if (!editor.isDestroyed) editor.view.dispatch(editor.state.tr.setMeta(searchHighlightKey, { clear: true }))
+        }, FLASH_MS)
+      })
+    },
+    [withEditor],
+  )
+
+  // ノートへのリンク・検索から来たとき:指定のページを表示する
+  const handledTarget = useRef<unknown>(null)
+  useEffect(() => {
+    if (!target?.pageId || !pages || handledTarget.current === target) return
+    handledTarget.current = target
+    const pageId = target.pageId
+    if (pages.some((p) => p.id === pageId)) {
+      showPage(pageId)
+      const jump = takePendingJump(noteId, pageId)
+      if (jump) flashJump(jump)
+    }
+    // URL からページの指定を外す(同じリンクをもう一度押しても移動できるように)
+    replaceHash(href.note(noteId))
+  }, [target, pages, noteId, showPage, flashJump])
 
   // 追加したページにカーソルを置く(エディタができるまで少し待つ)
   useEffect(() => {
@@ -380,26 +472,19 @@ export function NoteView({
     withEditor(pageId, (editor) => {
       let pos = findHeadingPos(editor.state.doc, index)
       if (pos === null) return
-      // 閉じたトグル見出しの中なら開く(開閉は元に戻すの対象にしない)
-      const closed = closedTogglesAround(editor.state.doc, pos)
-      if (closed.length) {
-        const tr = editor.state.tr
-        for (const p of closed) tr.setNodeMarkup(p, undefined, { ...tr.doc.nodeAt(p)!.attrs, open: true })
-        tr.setMeta(SKIP_HISTORY_META, true)
-        editor.view.dispatch(tr)
-        pos = findHeadingPos(editor.state.doc, index)
-        if (pos === null) return
-      }
+      // 閉じたトグル見出しの中なら開く
+      openTogglesAround(editor, pos)
+      pos = findHeadingPos(editor.state.doc, index)
+      if (pos === null) return
       const el = editor.view.nodeDOM(pos)
       const scroller = editor.view.dom.closest('.paper-scroll')
       if (!(el instanceof HTMLElement) || !scroller) return
-      const top = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 16
-      scroller.scrollTo({ top, behavior: 'smooth' })
+      scrollPaperTo(scroller, el.getBoundingClientRect().top + 32)
       // 一瞬色を付けて、どこへ移動したかわかるようにする
       el.classList.remove('toc-flash')
       void el.offsetWidth
       el.classList.add('toc-flash')
-      setTimeout(() => el.classList.remove('toc-flash'), 1600)
+      setTimeout(() => el.classList.remove('toc-flash'), FLASH_MS)
     })
   }
 
@@ -564,6 +649,16 @@ export function NoteView({
               <Icon name="star" filled={!!note?.favorite} />
               {note?.favorite ? 'お気に入りから外す' : 'お気に入りにする'}
             </button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false)
+                openSearch()
+              }}
+            >
+              <Icon name="search" />
+              全ノート検索
+            </button>
             <button role="menuitem" className="is-danger" onClick={() => void removeNote()}>
               <Icon name="trash" />
               ノートをゴミ箱に移す
@@ -573,7 +668,8 @@ export function NoteView({
       )}
 
       {layout.toolbarTop && (
-        <Toolbar session={session} top onAddSticky={addSticky} onMoveToPage={() => void moveSelectedToPage()} />
+        <Toolbar session={session} top onAddSticky={addSticky} onMoveToPage={() => void moveSelectedToPage()}
+          onInsertNoteLink={setLinkPickerFor} />
       )}
 
       <div className="pages-area">
@@ -650,6 +746,7 @@ export function NoteView({
           top={false}
           onAddSticky={addSticky}
           onMoveToPage={() => void moveSelectedToPage()}
+          onInsertNoteLink={setLinkPickerFor}
         />
       )}
 
@@ -660,6 +757,25 @@ export function NoteView({
           side={layout.toolbarTop}
           onClose={() => setTocOpen(false)}
           onJump={jumpToHeading}
+        />
+      )}
+
+      <TableMenu session={session} />
+      <LinkMenu session={session} />
+
+      {linkPickerFor && (
+        <NoteLinkPicker
+          currentNoteId={noteId}
+          side={layout.toolbarTop}
+          onClose={() => setLinkPickerFor(null)}
+          onPick={(t) => {
+            const editor = linkPickerFor
+            setLinkPickerFor(null)
+            if (editor.isDestroyed) return
+            session.history.closeGroup()
+            editor.chain().focus().insertNoteLink(t).run()
+            session.history.closeGroup()
+          }}
         />
       )}
 
@@ -689,6 +805,8 @@ export function NoteView({
             void addPage(pageCount)
           }}
           onReorder={(before, after) => void onReorder(before, after)}
+          paperClass={paperClass}
+          paperStyle={paperStyle}
         />
       )}
     </div>

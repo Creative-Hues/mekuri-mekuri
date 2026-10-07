@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import Dexie from 'dexie'
 
-// v2(アプリ 0.2.0〜0.3.0)で保存されたデータが、v3 のアプリで開いたときに消えずに移るかのテスト
+// v2(アプリ 0.2.0〜0.3.0)で保存されたデータが、今のアプリで開いたときに消えずに移るかのテスト
 
-describe('データ移行 v2 → v3', () => {
+describe('データ移行 v2 → 最新', () => {
   it('ノート・ページ・付箋を残したまま、お気に入り・ゴミ箱・デザインの項目を足す', async () => {
     // 0.3.0 のアプリと同じ形の DB を作る
     const old = new Dexie('mekuri-mekuri')
@@ -45,7 +45,7 @@ describe('データ移行 v2 → v3', () => {
     expect(pages[0].stickies).toEqual([sticky])
     expect(pages[0].content).toEqual(content)
     expect(pages.every((p) => p.deletedAt === null && p.deletedIndex === null)).toBe(true)
-    expect(db.verno).toBe(3)
+    expect(db.verno).toBe(4)
     db.close()
   })
 })

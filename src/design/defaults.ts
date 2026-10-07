@@ -12,10 +12,14 @@ export const legacyDesign = (): NoteDesign => ({
   cover: { pattern: 'plain', color: 'slate', layout: 'topLeft', font: 'gothicBold' },
 })
 
-/** 新しいノートのデザイン:表紙の色はランダム、柄は無地 */
-export function newNoteDesign(random: () => number = Math.random): NoteDesign {
+/**
+ * 新しいノートのデザイン:表紙の色はランダム、柄は無地。
+ * avoidColor(直前に作ったノートの表紙の色)とは違う色にする
+ */
+export function newNoteDesign(random: () => number = Math.random, avoidColor?: string): NoteDesign {
   const d = legacyDesign()
-  d.cover.color = COVER_COLORS[Math.floor(random() * COVER_COLORS.length)]?.name ?? 'slate'
+  const choices = COVER_COLORS.filter((c) => c.name !== avoidColor)
+  d.cover.color = choices[Math.floor(random() * choices.length)]?.name ?? 'slate'
   return d
 }
 

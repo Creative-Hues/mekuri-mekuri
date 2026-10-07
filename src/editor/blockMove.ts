@@ -4,19 +4,23 @@ import { Transform } from '@tiptap/pm/transform'
 /**
  * 行の移動(画面に関係しない計算部分)。
  *
- * 「行」= 段落・見出し・リストの1項目・ToDoの1項目・トグル見出し(中身ごと)。
- * リストの項目の中の段落は、項目ごと動かすので単独では動かさない。
+ * 「行」= 段落・見出し・リストの1項目・ToDoの1項目・トグル見出し(中身ごと)・表(まるごと)・画像・ノートへのリンク。
+ * リストの項目の中の段落は、項目ごと動かすので単独では動かさない。表のセルの中の段落も動かさない。
  * 位置(pos)は ProseMirror の位置で、行の「直前」を指す。
  */
 
 const ITEM_TYPES = new Set(['listItem', 'taskItem'])
 const LIST_TYPES = new Set(['bulletList', 'orderedList', 'taskList'])
+/** まるごと1行として動かすもの */
+const WHOLE_TYPES = new Set(['toggleHeading', 'table', 'image', 'noteLink'])
+/** この中の段落は単独では動かさない */
+const NO_LOOSE_PARAGRAPH = new Set(['listItem', 'taskItem', 'tableCell', 'tableHeader'])
 
 /** この行は動かせるか */
 export function isMovable(node: PMNode, parent: PMNode | null): boolean {
   const t = node.type.name
-  if (ITEM_TYPES.has(t) || t === 'toggleHeading') return true
-  if (t === 'paragraph' || t === 'heading') return !parent || !ITEM_TYPES.has(parent.type.name)
+  if (ITEM_TYPES.has(t) || WHOLE_TYPES.has(t)) return true
+  if (t === 'paragraph' || t === 'heading') return !parent || !NO_LOOSE_PARAGRAPH.has(parent.type.name)
   return false
 }
 
@@ -42,7 +46,8 @@ export function movableBlocks(doc: PMNode): Block[] {
   const list: Block[] = []
   doc.descendants((node, pos, parent) => {
     if (isMovable(node, parent)) list.push({ pos, node })
-    return !node.isTextblock
+    // 表の中(セルの段落)には入らない
+    return !node.isTextblock && node.type.name !== 'table'
   })
   return list
 }

@@ -10,6 +10,9 @@ import { Sidebar } from './components/Sidebar'
 import { DialogProvider, useDialog } from './components/Dialog'
 import { shouldRemindBackup, snoozeBackupReminder } from './backup/reminder'
 import { exportBackup } from './backup/export'
+import { SearchPanel } from './screens/SearchPanel'
+import { OPEN_SEARCH_EVENT } from './search/openSearch'
+import { matchShortcut } from './editor/shortcuts'
 
 export function App() {
   return (
@@ -23,11 +26,31 @@ function Shell() {
   const route = useRoute()
   const layout = useLayoutMode()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
 
   useBackupReminder()
 
   // 画面が変わったら開閉式の一覧は閉じる
   useEffect(() => setDrawerOpen(false), [route])
+
+  // 全ノート検索:検索ボタン(OPEN_SEARCH_EVENT)と Ctrl+F / ⌘+F
+  useEffect(() => {
+    const open = () => {
+      setDrawerOpen(false)
+      setSearchOpen(true)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (matchShortcut(e) !== 'search' || document.querySelector('.dialog-backdrop')) return
+      e.preventDefault()
+      open()
+    }
+    window.addEventListener(OPEN_SEARCH_EVENT, open)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener(OPEN_SEARCH_EVENT, open)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [])
 
   let screen
   if (route.name === 'note') {
@@ -35,6 +58,7 @@ function Shell() {
       <NoteView
         key={route.id}
         noteId={route.id}
+        target={route.pageId ? route : null}
         onToggleSidebar={layout.sidebar === 'toggle' ? () => setDrawerOpen((o) => !o) : undefined}
       />
     )
@@ -60,6 +84,7 @@ function Shell() {
         </div>
       )}
       <main className="app-main">{screen}</main>
+      {searchOpen && <SearchPanel onClose={() => setSearchOpen(false)} />}
       <UpdateBanner />
     </div>
   )

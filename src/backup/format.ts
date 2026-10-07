@@ -1,18 +1,28 @@
 import { SCHEMA_VERSION, type Note, type Page } from '../db/db'
 import { legacyDesign } from '../design/defaults'
 
-/** バックアップファイルの中身(スキーマ v3) */
-export interface BackupV3 {
+/** バックアップファイルの中の画像(v4〜)。data は base64 */
+export interface BackupImage {
+  id: string
+  mime: string
+  data: string
+  width: number
+  height: number
+}
+
+/** バックアップファイルの中身(スキーマ v4) */
+export interface BackupV4 {
   app: 'mekuri-mekuri'
-  schemaVersion: 3
+  schemaVersion: 4
   appVersion: string
   exportedAt: number
   notes: Note[]
   pages: Page[]
+  images: BackupImage[]
 }
 
 /** 今のアプリが扱う形 */
-export type Backup = BackupV3
+export type Backup = BackupV4
 
 export class BackupError extends Error {}
 
@@ -40,6 +50,8 @@ const migrations: Record<number, (data: any) => any> = {
       ? d.pages.map((p: any) => ({ ...p, deletedAt: null, deletedIndex: null }))
       : d.pages,
   }),
+  // v3 → v4:画像を追加(v3 までのファイルには画像はない)
+  3: (d) => ({ ...d, schemaVersion: 4, images: Array.isArray(d.images) ? d.images : [] }),
 }
 
 const isTime = (v: unknown) => v === null || (typeof v === 'number' && Number.isFinite(v))
@@ -64,7 +76,7 @@ export function parseBackup(text: string): Backup {
     if (!step) throw new BackupError(`バージョン ${data.schemaVersion} のファイルは読み込めません。`)
     data = step(data)
   }
-  if (!Array.isArray(data.notes) || !Array.isArray(data.pages)) {
+  if (!Array.isArray(data.notes) || !Array.isArray(data.pages) || !Array.isArray(data.images)) {
     throw new BackupError('ファイルの中身が壊れているようです。')
   }
   for (const n of data.notes) {
@@ -93,5 +105,34 @@ export function parseBackup(text: string): Backup {
       }
     }
   }
+  for (const img of data.images) {
+    if (
+      typeof img?.id !== 'string' ||
+      typeof img.mime !== 'string' ||
+      !img.mime.startsWith('image/') ||
+      typeof img.data !== 'string' ||
+      typeof img.width !== 'number' ||
+      typeof img.height !== 'number'
+    ) {
+      throw new BackupError('画像の情報が壊れています。')
+    }
+  }
   return data as Backup
+}
+
+/** ArrayBuffer → base64(大きな画像でも止まらないよう、少しずつ変換する) */
+export function toBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf)
+  let bin = ''
+  const CHUNK = 0x8000
+  for (let i = 0; i < bytes.length; i += CHUNK) bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+  return btoa(bin)
+}
+
+/** base64 → ArrayBuffer */
+export function fromBase64(b64: string): ArrayBuffer {
+  const bin = atob(b64)
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return bytes.buffer
 }

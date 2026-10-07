@@ -113,3 +113,19 @@ describe('本棚(データベース)', () => {
     expect(history.canUndo()).toBe(false)
   })
 })
+
+describe('新しいノートの表紙の色(データベース)', () => {
+  beforeEach(async () => {
+    await db.notes.clear()
+    await db.pages.clear()
+  })
+
+  it('続けて作っても、直前に作ったノートと同じ色にならない', async () => {
+    let prev = (await createNote('0')).design.cover.color
+    for (let i = 1; i < 40; i++) {
+      const color = (await createNote(String(i))).design.cover.color
+      expect(color).not.toBe(prev)
+      prev = color
+    }
+  })
+})

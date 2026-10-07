@@ -5,6 +5,11 @@ import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { ToggleHeading, ToggleTitle } from './ToggleHeading'
 import { Line, Marker, TextColor } from './marks'
 import { matchShortcut, type ShortcutId } from './shortcuts'
+import { MekuriTable, MekuriTableCell, MekuriTableHeader, MekuriTableRow } from './table'
+import { ImageNode } from './image'
+import { NoteLinkNode } from './noteLink'
+import { LINK_DIALOG_EVENT, WebLinkMenu, type LinkDialogDetail } from './webLink'
+import { SearchHighlight } from './searchHighlight'
 import {
   setBody,
   toggleBold,
@@ -70,6 +75,11 @@ const EditorShortcuts = Extension.create<{ hooks: EditorHooks | null }>({
               hooks?.[id]()
               return true
             }
+            if (id === 'link') {
+              event.preventDefault()
+              window.dispatchEvent(new CustomEvent<LinkDialogDetail>(LINK_DIALOG_EVENT, { detail: { editor } }))
+              return true
+            }
             if (id === 'moveUp' || id === 'moveDown') {
               if (!hooks?.moveLine) return false
               // 端でそれ以上動かせないときも、カーソルが飛ばないよう処理済みにする
@@ -91,6 +101,15 @@ const EditorShortcuts = Extension.create<{ hooks: EditorHooks | null }>({
   },
 })
 
+/** Webリンクの設定(本文・付箋で共通)。押してもすぐには開かず、メニューを出す(webLink.ts) */
+const LINK_OPTIONS = {
+  openOnClick: false,
+  autolink: true,
+  linkOnPaste: true,
+  defaultProtocol: 'https',
+  HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer nofollow' },
+} as const
+
 /** ページ本文のエディタで使う機能 */
 export function buildExtensions(hooks: EditorHooks): AnyExtension[] {
   return [
@@ -106,8 +125,16 @@ export function buildExtensions(hooks: EditorHooks): AnyExtension[] {
       italic: false,
       // 下線は、線の種類と色を選べる自作の「ライン」を使う
       underline: false,
-      link: false,
+      link: LINK_OPTIONS,
     }),
+    MekuriTable.configure({ hooks }),
+    MekuriTableRow,
+    MekuriTableCell,
+    MekuriTableHeader,
+    ImageNode,
+    NoteLinkNode,
+    WebLinkMenu,
+    SearchHighlight,
     TaskList,
     TaskItem.configure({ nested: true }),
     ToggleTitle,
@@ -121,7 +148,8 @@ export function buildExtensions(hooks: EditorHooks): AnyExtension[] {
 
 /**
  * 付箋のエディタで使う機能。
- * 文字の装飾とリストは本文と同じ。見出し・トグル見出しは付箋には大きすぎるので使わない
+ * 文字の装飾・リスト・Webリンクは本文と同じ。見出し・トグル見出し・表・画像・ノートへのリンクは
+ * 付箋には大きすぎるので使わない
  */
 export function buildStickyExtensions(hooks: EditorHooks): AnyExtension[] {
   return [
@@ -134,13 +162,14 @@ export function buildStickyExtensions(hooks: EditorHooks): AnyExtension[] {
       horizontalRule: false,
       italic: false,
       underline: false,
-      link: false,
+      link: LINK_OPTIONS,
     }),
     TaskList,
     TaskItem.configure({ nested: true }),
     TextColor,
     Marker,
     Line,
+    WebLinkMenu,
     EditorShortcuts.configure({ hooks }),
   ]
 }

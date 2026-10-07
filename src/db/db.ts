@@ -5,7 +5,7 @@ import type { BorderWidthName } from '../design/palette'
 
 // データ構造のバージョン。変えるときは docs/data-model.md も更新し、
 // 下の db.version(...) に新しい版と upgrade(マイグレーション)を追加する
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 
 /** ノートのデザイン(v3〜)。色・種類はすべて名前で保存する(src/design/) */
 export interface NoteDesign {
@@ -66,6 +66,23 @@ export interface Page {
   updatedAt: number
 }
 
+/** 画像(v4〜)。ページ内容の image ノードが imageId で指す */
+export interface ImageRecord {
+  id: string
+  /** image/jpeg・image/png など */
+  mime: string
+  /** 画像のデータ(iPhone の Safari でも確実に保存できるよう Blob ではなく ArrayBuffer) */
+  data: ArrayBuffer
+  width: number
+  height: number
+  createdAt: number
+  /**
+   * どこからも使われていないと最初に確認した日時。使われていれば null。
+   * 使われていない状態が30日続いた画像だけを消す(判定の間違いで使用中の画像を消さないため)
+   */
+  unusedSince: number | null
+}
+
 export interface MetaEntry {
   key: string
   value: unknown
@@ -74,6 +91,7 @@ export interface MetaEntry {
 export const db = new Dexie('mekuri-mekuri') as Dexie & {
   notes: EntityTable<Note, 'id'>
   pages: EntityTable<Page, 'id'>
+  images: EntityTable<ImageRecord, 'id'>
   meta: EntityTable<MetaEntry, 'key'>
 }
 
@@ -126,6 +144,14 @@ db.version(3)
         if (page.deletedIndex === undefined) page.deletedIndex = null
       })
   })
+
+// v4:画像のテーブルを追加。既存のノート・ページは変わらない(本文に表・画像・リンクのノードが増えるだけ)
+db.version(4).stores({
+  notes: 'id, order',
+  pages: 'id, noteId, [noteId+order]',
+  images: 'id',
+  meta: 'key',
+})
 
 /** 空のページ内容 */
 export const emptyDoc = (): JSONContent => ({ type: 'doc', content: [{ type: 'paragraph' }] })

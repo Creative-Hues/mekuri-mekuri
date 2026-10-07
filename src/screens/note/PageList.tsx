@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import {
   DndContext,
   KeyboardSensor,
@@ -34,6 +34,8 @@ export function PageList({
   onDelete,
   onAdd,
   onReorder,
+  paperClass = '',
+  paperStyle,
 }: {
   pages: Page[]
   session: NoteSession
@@ -43,6 +45,9 @@ export function PageList({
   onDelete: (pageId: string) => void
   onAdd: () => void
   onReorder: (before: string[], after: string[]) => void
+  /** ノートで選んだ紙の色(カードの背景に使う) */
+  paperClass?: string
+  paperStyle?: CSSProperties
 }) {
   // ドラッグを離した直後に一覧が古い並びに一瞬戻らないよう、手元でも並びを持つ
   const [ids, setIds] = useState(() => pages.map((p) => p.id))
@@ -99,6 +104,8 @@ export function PageList({
                     canDelete={ids.length > 1}
                     onShow={() => onShow(id)}
                     onDelete={() => onDelete(id)}
+                    paperClass={paperClass}
+                    paperStyle={paperStyle}
                   />
                 )
               })}
@@ -124,6 +131,8 @@ function PageCard(props: {
   canDelete: boolean
   onShow: () => void
   onDelete: () => void
+  paperClass: string
+  paperStyle?: CSSProperties
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: props.id })
@@ -131,8 +140,8 @@ function PageCard(props: {
   return (
     <li
       ref={setNodeRef}
-      className={`page-card${props.current ? ' is-current' : ''}${isDragging ? ' is-dragging' : ''}`}
-      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={`page-card${props.paperClass}${props.current ? ' is-current' : ''}${isDragging ? ' is-dragging' : ''}`}
+      style={{ ...props.paperStyle, transform: CSS.Translate.toString(transform), transition }}
     >
       <button className="page-card-body" onClick={props.onShow} aria-label={`${props.number}ページ目を開く`}>
         {props.lines.length === 0 ? (

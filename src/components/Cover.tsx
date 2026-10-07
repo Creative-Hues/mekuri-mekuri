@@ -6,9 +6,18 @@ import { coverColor } from '../design/palette'
 
 /**
  * ノートの表紙(本棚・ゴミ箱・デザインの見本で使う)。
- * 大きさは親の枠に合わせ、文字の大きさも表紙の幅に合わせて変わる
+ * 大きさは親の枠に合わせ、文字の大きさも表紙の幅に合わせて変わる。
+ * bare:タイトルを出さない(リンクのカードの小さな見本など)
  */
-export function Cover({ title, design }: { title: string; design: NoteDesign | undefined }) {
+export function Cover({
+  title,
+  design,
+  bare = false,
+}: {
+  title: string
+  design: NoteDesign | undefined
+  bare?: boolean
+}) {
   const d = normalizeDesign(design)
   const color = coverColor(d.cover.color)!
   const font = coverFont(d.cover.font)!
@@ -22,7 +31,7 @@ export function Cover({ title, design }: { title: string; design: NoteDesign | u
   } as CSSProperties
   return (
     <span className={`cover cover--${d.cover.layout} cover--${color.tone}`} style={style}>
-      <span className="cover-title">{title || '無題のノート'}</span>
+      {!bare && <span className="cover-title">{title || '無題のノート'}</span>}
     </span>
   )
 }

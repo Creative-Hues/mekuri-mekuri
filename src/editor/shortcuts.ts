@@ -26,6 +26,8 @@ export type ShortcutId =
   | 'moveDown'
   | 'addSticky'
   | 'toc'
+  | 'link'
+  | 'search'
 
 interface KeyCombo {
   code: string
@@ -61,6 +63,8 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'addSticky', label: '付箋を追加', combos: [{ code: 'KeyN', alt: true }] },
   { id: 'toc', label: '目次を開く', combos: [{ code: 'KeyT', alt: true }] },
   { id: 'pageList', label: 'ページ一覧を開く', combos: [{ code: 'KeyP', alt: true }] },
+  { id: 'link', label: 'Webリンクを付ける', combos: [{ code: 'KeyK' }] },
+  { id: 'search', label: '全ノート検索', combos: [{ code: 'KeyF' }] },
 ]
 
 /** Mac(iPad のキーボードを含む)では Ctrl の代わりに ⌘ を使う */

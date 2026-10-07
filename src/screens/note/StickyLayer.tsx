@@ -165,6 +165,7 @@ function StickyNote({
 
   return (
     <div
+      data-sticky-id={sticky.id}
       className={`sticky tone-light sticky--${sticky.color}${draft ? ' is-dragging' : ''}`}
       style={{
         left: `${box.x * 100}%`,

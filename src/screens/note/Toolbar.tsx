@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState, type ReactNode } from 'react'
+import { useEffect, useReducer, useRef, useState, type ReactNode } from 'react'
 import type { Editor } from '@tiptap/core'
 import { Icon, type IconName } from '../../components/Icon'
 import {
@@ -26,8 +26,12 @@ import {
 import { shortcutText, withShortcut } from '../../editor/shortcuts'
 import { useKeyboardOpen } from '../../layout/useKeyboardInset'
 import type { NoteSession } from './session'
+import { useDialog } from '../../components/Dialog'
+import { CELL_MENU_EVENT, insertTable, isInTable, type CellMenuDetail } from '../../editor/table'
+import { insertImageFile } from '../../editor/image'
+import { LINK_DIALOG_EVENT, type LinkDialogDetail } from '../../editor/webLink'
 
-type Panel = 'textColor' | 'marker' | 'line' | null
+type Panel = 'textColor' | 'marker' | 'line' | 'insert' | null
 
 /**
  * 書式ツールバー。
@@ -39,12 +43,15 @@ export function Toolbar({
   top,
   onAddSticky,
   onMoveToPage,
+  onInsertNoteLink,
 }: {
   session: NoteSession
   top: boolean
   onAddSticky: () => void
   /** 選択モードの「別のページへ」 */
   onMoveToPage: () => void
+  /** ノート・ページへのリンクを入れる(選ぶ画面を出す) */
+  onInsertNoteLink: (editor: Editor) => void
 }) {
   const [, rerender] = useReducer((n: number) => n + 1, 0)
   useEffect(() => {
@@ -57,6 +64,8 @@ export function Toolbar({
   }, [session])
 
   const keyboardOpen = useKeyboardOpen()
+  const dialog = useDialog()
+  const fileRef = useRef<HTMLInputElement>(null)
   const [panel, setPanel] = useState<Panel>(null)
   const togglePanel = (p: Panel) => setPanel((cur) => (cur === p ? null : p))
 
@@ -74,6 +83,41 @@ export function Toolbar({
     session.history.closeGroup()
   }
 
+  /** 表・画像・ノートへのリンクを入れられるか(付箋の中・表の中には入れない) */
+  const blocks = usable && !!editor.schema.nodes.table && !isInTable(editor)
+  const inTable = usable && isInTable(editor)
+
+  /** 画像を選んだとき:縮小して保存し、カーソルの位置に入れる */
+  const onImage = async (file: File) => {
+    if (!editor || editor.isDestroyed) return
+    try {
+      session.history.closeGroup()
+      await insertImageFile(editor, file)
+      session.history.closeGroup()
+    } catch (e) {
+      console.error(e)
+      await dialog.alert({ message: '画像を入れられませんでした。別の画像で試してください。' })
+    }
+  }
+
+  /** カーソルのあるセルのメニューを出す(長押しができないときのため) */
+  const openCellMenu = () => {
+    if (!editor || editor.isDestroyed) return
+    const { state, view } = editor
+    const $from = state.selection.$from
+    for (let d = $from.depth; d > 0; d--) {
+      const n = $from.node(d)
+      if (n.type.name === 'tableCell' || n.type.name === 'tableHeader') {
+        const cellPos = $from.before(d)
+        const r = view.coordsAtPos($from.pos)
+        window.dispatchEvent(
+          new CustomEvent<CellMenuDetail>(CELL_MENU_EVENT, { detail: { editor, cellPos, x: r.left, y: r.bottom } }),
+        )
+        return
+      }
+    }
+  }
+
   const headingActive = (level: 1 | 2 | 3) =>
     active('heading', { level }) || (active('toggleTitle') && active('toggleHeading', { level }))
 
@@ -87,6 +131,57 @@ export function Toolbar({
 
   const panelView = panel && usable && (
     <div className="toolbar-panel" role="group" aria-label={PANEL_LABEL[panel]}>
+      {panel === 'insert' && (
+        <div className="swatches insert-panel">
+          <Swatch
+            label="表"
+            wide
+            disabled={!blocks}
+            onClick={() => {
+              run(insertTable)
+              setPanel(null)
+            }}
+          >
+            <Icon name="table" size={18} />
+            <span>表</span>
+          </Swatch>
+          <Swatch
+            label="画像"
+            wide
+            disabled={!blocks}
+            onClick={() => {
+              setPanel(null)
+              fileRef.current?.click()
+            }}
+          >
+            <Icon name="image" size={18} />
+            <span>画像</span>
+          </Swatch>
+          <Swatch
+            label={withShortcut('Webリンク', 'link')}
+            wide
+            onClick={() => {
+              setPanel(null)
+              window.dispatchEvent(new CustomEvent<LinkDialogDetail>(LINK_DIALOG_EVENT, { detail: { editor } }))
+            }}
+          >
+            <Icon name="link" size={18} />
+            <span>Webリンク</span>
+          </Swatch>
+          <Swatch
+            label="ノート・ページへのリンク"
+            wide
+            disabled={!blocks}
+            onClick={() => {
+              setPanel(null)
+              onInsertNoteLink(editor)
+            }}
+          >
+            <Icon name="book" size={18} />
+            <span>ノートへのリンク</span>
+          </Swatch>
+        </div>
+      )}
       {panel === 'textColor' && (
         <div className="swatches">
           <Swatch label="色なし" selected={!textColor} onClick={() => run((e) => applyTextColor(e, null))}>
@@ -307,6 +402,14 @@ export function Toolbar({
           />
         </Group>
         <Group>
+          <TBtn
+            label="挿入(表・画像・リンク)"
+            icon="plus"
+            active={panel === 'insert'}
+            disabled={!usable}
+            onClick={() => togglePanel('insert')}
+          />
+          {inTable && <TBtn label="表の操作(色・行・列)" icon="table" onClick={openCellMenu} />}
           <TBtn label={withShortcut('付箋を追加', 'addSticky')} icon="sticky" onClick={onAddSticky} />
           <TBtn
             label="行を選ぶ(まとめて移動)"
@@ -331,6 +434,17 @@ export function Toolbar({
         )}
       </div>
       {top && panelView}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          e.target.value = ''
+          if (file) void onImage(file)
+        }}
+      />
     </div>
   )
 }
@@ -339,6 +453,7 @@ const PANEL_LABEL: Record<Exclude<Panel, null>, string> = {
   textColor: '文字色',
   marker: 'マーカー',
   line: 'ライン',
+  insert: '挿入',
 }
 
 function Group({ children }: { children: ReactNode }) {
@@ -382,6 +497,7 @@ function Swatch(props: {
   label: string
   selected?: boolean
   wide?: boolean
+  disabled?: boolean
   onClick: () => void
   children: ReactNode
 }) {
@@ -392,6 +508,7 @@ function Swatch(props: {
       aria-label={props.label}
       aria-pressed={props.selected}
       title={props.label}
+      disabled={props.disabled}
       onPointerDown={keepFocus}
       onMouseDown={keepFocus}
       onClick={props.onClick}

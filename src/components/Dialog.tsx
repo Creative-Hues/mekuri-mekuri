@@ -12,8 +12,13 @@ interface DialogRequest {
   buttons: DialogButton<unknown>[]
   /** 外側をタップ・Escキーで閉じたときの値 */
   cancelValue: unknown
+  /** 文字の入力欄(prompt のとき) */
+  input?: { initial: string; placeholder?: string; type?: 'text' | 'url' }
   resolve: (value: unknown) => void
 }
+
+/** prompt の「OK」ボタンの目印(押したら入力欄の文字を返す) */
+const INPUT_OK = Symbol('ok')
 
 interface DialogApi {
   /** ボタンを選ばせる。選んだボタンの value を返す */
@@ -22,6 +27,15 @@ interface DialogApi {
   confirm(opts: { title?: string; message: ReactNode; okLabel?: string; danger?: boolean }): Promise<boolean>
   /** お知らせ(OKだけ) */
   alert(opts: { title?: string; message: ReactNode }): Promise<void>
+  /** 文字を入力してもらう。キャンセルなら null */
+  prompt(opts: {
+    title?: string
+    message: ReactNode
+    initial?: string
+    placeholder?: string
+    type?: 'text' | 'url'
+    okLabel?: string
+  }): Promise<string | null>
 }
 
 const DialogContext = createContext<DialogApi | null>(null)
@@ -68,10 +82,27 @@ export function DialogProvider({ children }: { children: ReactNode }) {
     alert: async ({ title, message }) => {
       await choose({ title, message, cancelValue: undefined, buttons: [{ label: 'OK', value: undefined, kind: 'primary' }] })
     },
+    prompt: ({ title, message, initial = '', placeholder, type, okLabel = 'OK' }) =>
+      new Promise<string | null>((resolve) => {
+        setQueue((q) => [
+          ...q,
+          {
+            title,
+            message,
+            input: { initial, placeholder, type },
+            cancelValue: null,
+            buttons: [
+              { label: 'キャンセル', value: null, kind: 'plain' },
+              { label: okLabel, value: INPUT_OK, kind: 'primary' },
+            ],
+            resolve: resolve as (v: unknown) => void,
+          },
+        ])
+      }),
   }).current
 
-  const close = (value: unknown) => {
-    current?.resolve(value)
+  const close = (value: unknown, text?: string) => {
+    current?.resolve(value === INPUT_OK ? (text ?? '') : value)
     setQueue((q) => q.slice(1))
   }
 
@@ -83,10 +114,25 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   )
 }
 
-function DialogView({ request, onClose }: { request: DialogRequest; onClose: (v: unknown) => void }) {
+function DialogView({
+  request,
+  onClose,
+}: {
+  request: DialogRequest
+  onClose: (v: unknown, text?: string) => void
+}) {
   const lastButton = useRef<HTMLButtonElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [text, setText] = useState(request.input?.initial ?? '')
+  // 続けて別の入力欄を出したとき、前の文字が残らないようにする
+  useEffect(() => setText(request.input?.initial ?? ''), [request])
   useEffect(() => {
-    lastButton.current?.focus()
+    if (inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    } else {
+      lastButton.current?.focus()
+    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose(request.cancelValue)
     }
@@ -99,13 +145,29 @@ function DialogView({ request, onClose }: { request: DialogRequest; onClose: (v:
       <div className="dialog" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         {request.title && <h2 className="dialog-title">{request.title}</h2>}
         <div className="dialog-message">{request.message}</div>
+        {request.input && (
+          <input
+            ref={inputRef}
+            className="dialog-input"
+            type={request.input.type ?? 'text'}
+            inputMode={request.input.type === 'url' ? 'url' : undefined}
+            autoCapitalize="off"
+            autoCorrect="off"
+            value={text}
+            placeholder={request.input.placeholder}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) onClose(INPUT_OK, text)
+            }}
+          />
+        )}
         <div className="dialog-buttons">
           {request.buttons.map((b, i) => (
             <button
               key={i}
               ref={i === request.buttons.length - 1 ? lastButton : undefined}
               className={`btn btn--${b.kind ?? 'plain'}`}
-              onClick={() => onClose(b.value)}
+              onClick={() => onClose(b.value, text)}
             >
               {b.label}
             </button>

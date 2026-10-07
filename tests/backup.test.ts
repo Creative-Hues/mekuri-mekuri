@@ -30,9 +30,9 @@ function v1File() {
 }
 
 describe('バックアップの読み取り(parseBackup)', () => {
-  it('v1 のファイルは今の形(v3)に変換される(付箋は空・ゴミ箱でない・今までの見た目)', () => {
+  it('v1 のファイルは今の形(v4)に変換される(付箋は空・ゴミ箱でない・今までの見た目)', () => {
     const backup = parseBackup(v1File())
-    expect(backup.schemaVersion).toBe(3)
+    expect(backup.schemaVersion).toBe(4)
     expect(backup.notes[0]).toMatchObject({ favorite: false, deletedAt: null, design: legacyDesign() })
     expect(backup.notes).toHaveLength(1)
     expect(backup.pages).toHaveLength(2)
@@ -151,14 +151,14 @@ function v3File(over: { notes?: object[]; pages?: object[] } = {}) {
 }
 
 describe('v3 のバックアップ(お気に入り・ゴミ箱・デザイン)', () => {
-  it('v2 のファイルは v3 に変換され、今までと同じ見た目になる', () => {
+  it('v2 のファイルは今の形に変換され、今までと同じ見た目になる', () => {
     const file = JSON.stringify({
       app: 'mekuri-mekuri', schemaVersion: 2, appVersion: '0.3.0', exportedAt: 1,
       notes: [{ id: 'n1', title: 'a', order: 0, createdAt: 1, updatedAt: 1 }],
       pages: [{ id: 'p1', noteId: 'n1', order: 0, content, stickies: [], createdAt: 1, updatedAt: 1 }],
     })
     const backup = parseBackup(file)
-    expect(backup.schemaVersion).toBe(3)
+    expect(backup.schemaVersion).toBe(4)
     expect(backup.notes[0]).toMatchObject({ favorite: false, deletedAt: null, design: legacyDesign() })
     expect(backup.pages[0]).toMatchObject({ deletedAt: null, deletedIndex: null, stickies: [] })
   })

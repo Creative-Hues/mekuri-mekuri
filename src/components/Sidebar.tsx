@@ -4,6 +4,8 @@ import { fullOrder, shelfSections } from '../shelf/order'
 import { href, navigate } from '../router'
 import { APP_VERSION } from '../version'
 import { Icon } from './Icon'
+import { openSearch } from '../search/openSearch'
+import { withShortcut } from '../editor/shortcuts'
 
 /** ノート一覧(PCは常に表示、タブレットは開閉式)。並びは本棚と同じ(お気に入りが先) */
 export function Sidebar({ currentId, onNavigate }: { currentId?: string; onNavigate?: () => void }) {
@@ -23,9 +25,22 @@ export function Sidebar({ currentId, onNavigate }: { currentId?: string; onNavig
         <a className="sidebar-app" href={href.shelf()} onClick={onNavigate}>
           めくりめくり
         </a>
-        <a className="icon-btn" href={href.settings()} onClick={onNavigate} aria-label="設定" title="設定">
-          <Icon name="settings" />
-        </a>
+        <span className="sidebar-head-actions">
+          <button
+            className="icon-btn"
+            onClick={() => {
+              onNavigate?.()
+              openSearch()
+            }}
+            aria-label="全ノート検索"
+            title={withShortcut('全ノート検索', 'search')}
+          >
+            <Icon name="search" />
+          </button>
+          <a className="icon-btn" href={href.settings()} onClick={onNavigate} aria-label="設定" title="設定">
+            <Icon name="settings" />
+          </a>
+        </span>
       </div>
       <button className="sidebar-new" onClick={() => void create()}>
         <Icon name="plus" size={18} />
