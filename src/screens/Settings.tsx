@@ -12,7 +12,10 @@ import { APP_VERSION } from '../version'
 import { Icon } from '../components/Icon'
 import { useDialog } from '../components/Dialog'
 import { SHORTCUTS, shortcutText } from '../editor/shortcuts'
-import { THEME_OPTIONS, setThemePref, useThemePref } from '../theme/theme'
+import { THEME_OPTIONS, setThemePref, useTheme, useThemePref } from '../theme/theme'
+import { BACKUP_MOVE_NOTICE } from '../content/notices'
+import { openOnboarding } from '../onboarding/onboarding'
+import { buildReportUrl, collectReportInfo, deviceText } from '../report/report'
 
 function formatDate(ms: number): string {
   const d = new Date(ms)
@@ -25,6 +28,7 @@ export function Settings() {
   const lastBackup = useLiveQuery(async () => (await db.meta.get(META.lastBackupAt))?.value as number | undefined, [])
   const [persisted, setPersisted] = useState<boolean | null>(null)
   const themePref = useThemePref()
+  const theme = useTheme()
 
   useEffect(() => {
     void isPersisted().then(setPersisted)
@@ -83,6 +87,46 @@ export function Settings() {
     }
   }
 
+  /** 不具合報告:送る情報を見せてから、入力済みの Googleフォームを開く */
+  const doReport = async () => {
+    const prefLabel = THEME_OPTIONS.find((o) => o.value === themePref)?.label ?? themePref
+    const info = collectReportInfo(`${prefLabel}(表示:${theme === 'dark' ? 'ダーク' : 'ライト'})`)
+    const url = buildReportUrl(info)
+    const ok = await dialog.confirm({
+      title: '不具合を報告する',
+      message: (
+        <>
+          <p>
+            Googleフォーム(Googleのサービス)が開きます。起きたことをフォームに書いて送ってください。
+            ノートの中身やタイトルは送られません。
+          </p>
+          <p>次の情報が、フォームに入力された状態で開きます:</p>
+          <pre className="report-info">{`アプリのバージョン:${info.appVersion}\n${deviceText(info)}`}</pre>
+        </>
+      ),
+      okLabel: 'フォームを開く',
+    })
+    if (!ok) return
+    // 'noopener' を指定すると開けたかどうかが分からないので、開いたあとで切り離す
+    const win = window.open(url, '_blank')
+    if (win) {
+      win.opener = null
+    } else {
+      // 新しいタブを開けなかったとき(ポップアップの制限など)は、リンクを押してもらう
+      await dialog.alert({
+        title: 'フォームを開けませんでした',
+        message: (
+          <p>
+            <a href={url} target="_blank" rel="noopener noreferrer">
+              こちらを押して
+            </a>
+            フォームを開いてください。
+          </p>
+        ),
+      })
+    }
+  }
+
   return (
     <div className="settings">
       <header className="settings-header">
@@ -117,6 +161,7 @@ export function Settings() {
         <p className="settings-note">
           ノートはこの端末の中だけに保存されています。端末の故障やブラウザのデータ削除に備えて、ときどきバックアップしてください。
         </p>
+        <p className="settings-note">{BACKUP_MOVE_NOTICE}</p>
         <div className="settings-row">
           <span>前回のバックアップ</span>
           <span>{lastBackup ? formatDate(lastBackup) : 'まだありません'}</span>
@@ -172,6 +217,31 @@ export function Settings() {
             </div>
           ))}
         </dl>
+      </section>
+
+      <section className="settings-section">
+        <h2>データとプライバシー</h2>
+        <ul className="settings-list">
+          <li>ノート(文章・画像・付箋・デザイン)はこの端末のブラウザの中だけに保存し、外部のサーバーには送りません。</li>
+          <li>アカウント登録・ログイン・利用状況の収集(アクセス解析)はありません。</li>
+          <li>
+            不具合報告は、Googleフォーム(Googleのサービス)を通して送られます。送られるのは、フォームに書いた内容と、アプリのバージョン・端末の情報(ブラウザとOSの種類・画面の大きさ・起動のしかた・明るさの設定)だけで、ノートの中身やタイトルは送られません。フォームに送った内容は、Googleのプライバシーポリシーに沿って扱われます。
+          </li>
+          <li>アプリ本体は GitHub Pages から配信されます(ノートのデータは送られません)。</li>
+          <li>バックアップや書き出しのファイルは、この端末に保存されます。ファイルの保管・共有はご自身で管理してください。</li>
+        </ul>
+      </section>
+
+      <section className="settings-section">
+        <h2>使い方・不具合の報告</h2>
+        <div className="settings-actions">
+          <button className="btn btn--plain" onClick={openOnboarding}>
+            使い方を見る
+          </button>
+          <button className="btn btn--plain" onClick={() => void doReport()}>
+            不具合を報告する
+          </button>
+        </div>
       </section>
 
       <section className="settings-section">

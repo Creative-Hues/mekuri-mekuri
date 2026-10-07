@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { useRoute } from './router'
 import { useLayoutMode } from './layout/useLayoutMode'
@@ -13,6 +13,8 @@ import { exportBackup } from './backup/export'
 import { SearchPanel } from './screens/SearchPanel'
 import { OPEN_SEARCH_EVENT } from './search/openSearch'
 import { matchShortcut } from './editor/shortcuts'
+import { Onboarding } from './screens/Onboarding'
+import { finishOnboarding, OPEN_ONBOARDING_EVENT, shouldShowOnboarding } from './onboarding/onboarding'
 
 export function App() {
   return (
@@ -27,8 +29,9 @@ function Shell() {
   const layout = useLayoutMode()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [onboardingOpen, setOnboardingOpen] = useState(false)
 
-  useBackupReminder()
+  useStartupGuide(() => setOnboardingOpen(true))
   usePreventFileDrop()
 
   // 画面が変わったら開閉式の一覧は閉じる
@@ -51,6 +54,13 @@ function Shell() {
       window.removeEventListener(OPEN_SEARCH_EVENT, open)
       window.removeEventListener('keydown', onKey)
     }
+  }, [])
+
+  // 設定画面の「使い方を見る」
+  useEffect(() => {
+    const open = () => setOnboardingOpen(true)
+    window.addEventListener(OPEN_ONBOARDING_EVENT, open)
+    return () => window.removeEventListener(OPEN_ONBOARDING_EVENT, open)
   }, [])
 
   let screen
@@ -86,18 +96,39 @@ function Shell() {
       )}
       <main className="app-main">{screen}</main>
       {searchOpen && <SearchPanel onClose={() => setSearchOpen(false)} />}
+      {onboardingOpen && (
+        <Onboarding
+          onClose={() => {
+            setOnboardingOpen(false)
+            void finishOnboarding()
+          }}
+        />
+      )}
       <UpdateBanner />
     </div>
   )
 }
 
-/** 起動時、前回のバックアップから7日たっていたら案内する */
-function useBackupReminder() {
+/**
+ * 起動時の案内:
+ * 新しく使い始める人には使い方説明を出す。それ以外は、前回のバックアップから7日たっていたら案内する。
+ * 使い方説明の判定は、バックアップ案内の判定(初回起動の日時を記録する)より先に行う
+ */
+function useStartupGuide(showOnboarding: () => void) {
   const dialog = useDialog()
+  const showRef = useRef(showOnboarding)
+  showRef.current = showOnboarding
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      if (!(await shouldRemindBackup()) || cancelled) return
+      const first = await shouldShowOnboarding()
+      const remind = await shouldRemindBackup()
+      if (cancelled) return
+      if (first) {
+        showRef.current()
+        return
+      }
+      if (!remind) return
       const yes = await dialog.choose({
         title: 'バックアップしますか？',
         message: '前回のバックアップから7日以上たちました。ノートを守るため、バックアップファイルを書き出しておきましょう。',

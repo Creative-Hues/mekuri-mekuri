@@ -97,6 +97,10 @@
 | firstLaunchAt | number | 初めて起動した日時 |
 | lastBackupAt | number | 最後にバックアップを書き出した日時 |
 | backupReminderSnoozedAt | number | バックアップ案内で「あとで」を押した日時 |
+| onboardingDoneAt | number | 初回の使い方説明を見終えた日時(アプリ 1.0.0〜)。0.6.0 以前から使っている人は、1.0.0 の初回起動時にその日時を記録する(使い方説明を出さない) |
+
+- meta はバックアップファイルに入れない(端末ごとの記録のため)
+- meta にキーを足すだけならテーブル・スキーマ番号は変わらない(マイグレーション不要)
 
 ## 端末ごとの設定(IndexedDB の外)
 
@@ -173,3 +177,4 @@ TipTap の JSON(`{ type: 'doc', content: [...] }`)。v1 で使うもの:
 - v2(アプリ 0.2.0〜0.3.0):ページに `stickies`(付箋)を追加。既存のページ・v1 のバックアップファイルには空の配列を入れる。本文の装飾に `textColor`・`marker`・`underline` を追加(本文の JSON の形は変わらないので、移し替えは不要)
 - v3(アプリ 0.4.0〜):ノートに `favorite`・`deletedAt`・`design`、ページに `deletedAt`・`deletedIndex` を追加(ゴミ箱・お気に入り・デザイン)。既存のノートは「お気に入りでない・ゴミ箱でない・今までと同じ見た目」に、v2 以前のバックアップファイルも同じく変換する。インデックスは変わらない
 - v4(アプリ 0.5.0〜):`images`(画像)のテーブルを追加し、画像の参照の片付けのために `unusedSince` を持たせた。本文に `table` / `tableRow` / `tableCell` / `tableHeader`・`image`・`noteLink` のノードと `link` の mark を追加。既存のノート・ページは変わらない(移し替えは不要)。v3 以前のバックアップファイルは `images: []` を補って読む
+- (アプリ 1.0.0:meta に `onboardingDoneAt` を追加。スキーマ番号は 4 のまま、移し替えは不要)

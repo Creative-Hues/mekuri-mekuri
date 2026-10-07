@@ -21,8 +21,10 @@ export default defineConfig({
       manifest: {
         name: 'めくりめくり',
         short_name: 'めくりめくり',
-        description: 'シンプルでデザイン性の高いノートアプリ',
+        description:
+          'シンプルでデザイン性の高いノートアプリ。ページを左右にめくって書き、表紙や紙の色を選べます。ノートは端末の中だけに保存します。',
         lang: 'ja',
+        categories: ['productivity'],
         theme_color: '#f6f1e7',
         background_color: '#f6f1e7',
         display: 'standalone',

@@ -13,4 +13,6 @@ export const META = {
   firstLaunchAt: 'firstLaunchAt',
   lastBackupAt: 'lastBackupAt',
   backupReminderSnoozedAt: 'backupReminderSnoozedAt',
+  /** 初回の使い方説明を見終えた(または既存の利用者として出さないと決めた)日時(アプリ 1.0.0〜) */
+  onboardingDoneAt: 'onboardingDoneAt',
 } as const
