@@ -84,18 +84,19 @@ describe.each([
     expect(contrast(v['--on-accent'], v['--accent'])).toBeGreaterThanOrEqual(4.5)
     // 選んでいる項目の塗りが、選んでいない項目の地と明るさでも違う
     expect(contrast(v['--accent'], v['--seg-bg'])).toBeGreaterThanOrEqual(1.5)
-    // 選んでいる項目の縁(--accent-ink)は、選んでいない項目の地からはっきり見える
-    expect(contrast(v['--accent-ink'], v['--seg-bg'])).toBeGreaterThanOrEqual(3)
     // 文字の色でも見分けられる(選んでいる=--on-accent、選んでいない=--ink-soft)
     expect(v['--on-accent']).not.toBe(v['--ink-soft'])
   })
 
-  it('いくつかから1つを選ぶボタンは、選んでいる項目をアクセントで塗る(CSS)', () => {
+  it('いくつかから1つを選ぶボタンは、選んでいる項目をアクセントで塗って太字にし、縁は付けない(CSS)', () => {
     const screens = readFileSync(join(process.cwd(), 'src/styles/screens.css'), 'utf8')
     const rule = /\.segmented-btn\.is-selected\s*\{([^}]*)\}/.exec(screens)?.[1] ?? ''
     expect(rule).toContain('background: var(--accent)')
     expect(rule).toContain('color: var(--on-accent)')
-    expect(rule).toContain('var(--accent-ink)')
+    expect(rule).toContain('font-weight: 700')
+    // 塗りのボタン(バックアップを書き出す など)と同じく、縁は付けない
+    expect(rule).not.toContain('box-shadow')
+    expect(rule).not.toContain('border')
     const box = /\.segmented\s*\{([^}]*)\}/.exec(screens)?.[1] ?? ''
     expect(box).toContain('border: 1px solid var(--btn-border)')
     expect(box).toContain('background: var(--seg-bg)')
