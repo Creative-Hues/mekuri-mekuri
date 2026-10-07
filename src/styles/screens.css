@@ -603,3 +603,168 @@
 .import-error {
   color: var(--danger);
 }
+
+/* ---- 本棚・ゴミ箱の選ぶモード ---- */
+.icon-btn.is-on {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.shelf-select-hint {
+  max-width: 1080px;
+  margin: 0 auto 8px;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+/* 下の帯に隠れないよう、本棚の下を空ける */
+.shelf.is-selecting {
+  padding-bottom: calc(96px + var(--safe-bottom));
+}
+/* 選ぶモードでは ≡・星を隠す(場所は残して、表紙の並びが動かないようにする) */
+.shelf.is-selecting .book-foot {
+  visibility: hidden;
+}
+.book--pick {
+  position: relative;
+  -webkit-touch-callout: none;
+}
+.book--pick:hover {
+  transform: none;
+}
+/* 選んでいない表紙は少し薄く、選んだ表紙はアクセントの色の枠 */
+.shelf.is-selecting .shelf-item:not(.is-picked) .book--pick > :first-child {
+  opacity: 0.72;
+}
+.shelf-item.is-picked .book--pick {
+  outline: 3px solid var(--accent-ink);
+  outline-offset: 3px;
+}
+.book-check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.25);
+  color: var(--on-accent);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+}
+.shelf-item.is-picked .book-check {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* 画面の下の帯(選んだものへのまとめての操作) */
+.select-bar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(12px + var(--safe-bottom));
+  z-index: 30;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  padding: 6px 8px 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.select-bar-count {
+  flex: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.select-bar-buttons {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.select-bar-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: none;
+  min-width: 60px;
+  min-height: 48px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.select-bar-btn:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+.select-bar-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.select-bar-btn.is-danger {
+  color: var(--danger);
+}
+.select-bar-btn:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 1px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .select-bar {
+    animation: select-bar-in 0.16s ease-out;
+  }
+}
+@keyframes select-bar-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}
+/* ゴミ箱の選ぶモード:行を押して選ぶ */
+.trash.is-selecting {
+  padding-bottom: calc(96px + var(--safe-bottom));
+}
+.trash.is-selecting .trash-item {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.trash-item.is-picked {
+  background: var(--accent-soft);
+  border-radius: 10px;
+}
+.trash-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--ink-faint);
+  border-radius: 6px;
+  color: var(--on-accent);
+}
+.trash-check.is-on {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.trash.is-selecting .trash-item {
+  padding: 10px 8px;
+}
+/* 左にノートの一覧(幅 260px)が出ている画面では、帯を右側の画面の中央にそろえる(ゴミ箱・設定など) */
+.app.has-sidebar .select-bar {
+  left: calc(50% + 130px);
+  max-width: calc(100vw - 260px - 16px);
+}

@@ -21,6 +21,8 @@ import { paginate, type Atom, type Slice } from './paginate'
  * 2. 文字の行・画像・表の行などの途中を避けて、紙1枚分ずつに区切る
  * 3. 区切ったそれぞれを、同じ大きさの紙に1枚ずつ描く(紙ごとに中身をずらして、その範囲だけを見せる)
  * 紙を自分で分けるので、ページ番号(「1 / 6」)を紙の縁の内側の下中央に、ずれずに出せる
+ *
+ * 本棚でまとめて書き出すときは、複数のノートを1回の印刷にする(ノートごとに新しい紙から。ページ番号はノートごとに 1 から)
  */
 
 const NO_HOOKS = { undo: () => {}, redo: () => {}, closeGroup: () => {} }
@@ -94,8 +96,11 @@ async function waitForImages(root: HTMLElement | null, timeout = 10_000): Promis
 
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(null)))
 
-/** 切ってはいけないもの(行の途中で切れると読めなくなるもの) */
-const ATOM_SELECTOR = 'img, .image-block, tr, .note-link, hr, input, .sticky'
+/**
+ * 切ってはいけないもの(行の途中で切れると読めなくなるもの)。
+ * 縦に結合したセル(rowspan)は、またぐ行ごと1つのまとまりにする
+ */
+const ATOM_SELECTOR = 'img, .image-block, tr, td[rowspan], th[rowspan], .note-link, hr, input, .sticky'
 
 /**
  * 並べた中身を測る:高さと、切ってはいけないもの(文字の行・画像・表の行・付箋など)の位置。
@@ -133,7 +138,23 @@ interface Layout {
  * 印刷画面を閉じたあとも、次に印刷するまで(画面に出ない状態で)残しておく
  * (iPhone では印刷画面が閉じる前に afterprint が来ることがあり、すぐ消すと白紙になるおそれがあるため)
  */
-export function PrintView({ source, job, pageNumbers }: { source: ExportSource; job: number; pageNumbers: boolean }) {
+/** ノートの紙のデザイン(背景色・縁・本文の書体) */
+function paperOf(source: ExportSource): { className: string; style: CSSProperties } {
+  const design = normalizeDesign(source.note.design)
+  const paper = paperColor(design.paper)
+  const border = borderWidth(design.border.width)
+  return {
+    className: `tone-${paper?.tone ?? 'light'}`,
+    style: {
+      // 本文の書体も画面と同じにする
+      '--note-font': bodyFontFamily(design),
+      ...(paper ? ({ '--paper': paper.hex } as CSSProperties) : {}),
+      ...(border && border.px > 0 ? { border: `${border.px}px solid ${borderColor(design.border.color)?.hex}` } : {}),
+    } as CSSProperties,
+  }
+}
+
+export function PrintView({ sources, job, pageNumbers }: { sources: ExportSource[]; job: number; pageNumbers: boolean }) {
   const rootRef = useRef<HTMLDivElement>(null)
   const [layout, setLayout] = useState<Layout | null>(null)
   const measuring = layout?.job !== job
@@ -181,7 +202,7 @@ export function PrintView({ source, job, pageNumbers }: { source: ExportSource; 
       await nextFrame()
       await waitForImages(rootRef.current)
       if (cancelled) return
-      document.title = source.model.title
+      document.title = sources.length === 1 ? sources[0].model.title : `めくりめくり(${sources.length}冊)`
       window.addEventListener('afterprint', restoreTitle, { once: true })
       window.print()
     })()
@@ -193,44 +214,41 @@ export function PrintView({ source, job, pageNumbers }: { source: ExportSource; 
     // 測り終えたとき(新しく印刷したとき)だけ印刷画面を開く
   }, [measuring, layout])
 
-  const design = normalizeDesign(source.note.design)
-  const paper = paperColor(design.paper)
-  const border = borderWidth(design.border.width)
-  const paperClass = `tone-${paper?.tone ?? 'light'}`
-  const paperStyle = {
-    // 本文の書体も画面と同じにする
-    '--note-font': bodyFontFamily(design),
-    ...(paper ? ({ '--paper': paper.hex } as CSSProperties) : {}),
-    ...(border && border.px > 0 ? { border: `${border.px}px solid ${borderColor(design.border.color)?.hex}` } : {}),
-  } as CSSProperties
+  const papers = sources.map(paperOf)
 
   if (measuring) {
     return createPortal(
       <div className="print-root tone-light is-measuring" ref={rootRef} aria-hidden="true">
         {/* 紙1枚の中の高さを測るための、空の紙 */}
-        <section className={`print-sheet ${paperClass}`} style={paperStyle} data-print-probe />
-        {source.pages.map((p) => (
-          <section
-            key={`${job}-${p.id}`}
-            className={`print-sheet print-sheet--measure ${paperClass}`}
-            style={paperStyle}
-            data-print-page={p.id}
-          >
-            <div className="print-window">
-              <PageContent page={p} />
-            </div>
-          </section>
-        ))}
+        <section className={`print-sheet ${papers[0]?.className ?? 'tone-light'}`} style={papers[0]?.style} data-print-probe />
+        {sources.flatMap((source, n) =>
+          source.pages.map((p) => (
+            <section
+              key={`${job}-${p.id}`}
+              className={`print-sheet print-sheet--measure ${papers[n].className}`}
+              style={papers[n].style}
+              data-print-page={p.id}
+            >
+              <div className="print-window">
+                <PageContent page={p} />
+              </div>
+            </section>
+          )),
+        )}
       </div>,
       document.body,
     )
   }
 
-  const sheets = source.pages.flatMap((p) => (layout!.slices[p.id] ?? [{ start: 0, end: 0 }]).map((s) => ({ page: p, s })))
+  // ノートごとの紙の並び(ページ番号はノートごとに数える)
+  const sheets = sources.flatMap((source, n) => {
+    const own = source.pages.flatMap((p) => (layout!.slices[p.id] ?? [{ start: 0, end: 0 }]).map((s) => ({ page: p, s })))
+    return own.map((sheet, i) => ({ ...sheet, paper: papers[n], i, total: own.length }))
+  })
   return createPortal(
     <div className="print-root tone-light" ref={rootRef} aria-hidden="true">
-      {sheets.map(({ page, s }, i) => (
-        <section key={`${job}-${page.id}-${i}`} className={`print-sheet ${paperClass}`} style={paperStyle}>
+      {sheets.map(({ page, s, paper, i, total }) => (
+        <section key={`${job}-${page.id}-${i}`} className={`print-sheet ${paper.className}`} style={paper.style}>
           {/* その紙の範囲だけを見せる(中身を上にずらし、範囲の外は隠す) */}
           <div className="print-window" style={{ top: PRINT_TOP, height: Math.max(0, s.end - s.start) }}>
             <div style={{ transform: `translateY(${-s.start}px)` }}>
@@ -239,7 +257,7 @@ export function PrintView({ source, job, pageNumbers }: { source: ExportSource; 
           </div>
           {pageNumbers && (
             <div className="print-number">
-              {i + 1} / {sheets.length}
+              {i + 1} / {total}
             </div>
           )}
         </section>

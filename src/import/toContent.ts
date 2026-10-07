@@ -1,6 +1,6 @@
 import type { JSONContent } from '@tiptap/core'
 import { emptyDoc } from '../db/db'
-import type { ListKind, Run, TableCellBlock } from '../export/model'
+import { tableGrid, type ListKind, type Run, type TableBlock } from '../export/model'
 import type { ImportBlock, ImportedPage } from './model'
 
 /**
@@ -59,22 +59,35 @@ function paragraph(runs: Run[]): JSONContent {
   return content.length ? { type: 'paragraph', content } : { type: 'paragraph' }
 }
 
-function tableNode(rows: TableCellBlock[][]): JSONContent {
-  const cols = Math.max(1, ...rows.map((r) => r.length))
+/** 表のノード。結合・配置・列の幅・見出しの設定もそのまま入れる。足りないマスは空のセルで埋める */
+function tableNode(b: TableBlock): JSONContent {
+  const grid = tableGrid(b.rows)
+  const width = grid[0]?.length ?? 0
+  const widths = b.colWidths && b.colWidths.length >= width ? b.colWidths : null
   return {
     type: 'table',
-    content: rows.map((row) => ({
+    attrs: { headerRow: !!b.headerRow, headerColumn: !!b.headerColumn },
+    content: grid.map((g, r) => ({
       type: 'tableRow',
-      // 列の数がそろっていない表は、足りないところに空のセルを足す
-      content: Array.from({ length: cols }, (_, i) => {
-        const cell = row[i]
-        const paragraphs = cell && cell.paragraphs.length > 0 ? cell.paragraphs : [[]]
-        return {
-          type: 'tableCell',
-          attrs: { colspan: 1, rowspan: 1, colwidth: null, bg: cell?.bg ?? null },
-          content: paragraphs.map(paragraph),
-        }
-      }),
+      content: g
+        .filter((s) => s.origin && s.row === r)
+        .map((s) => {
+          const colspan = Math.max(1, s.cell.colspan ?? 1)
+          const rowspan = Math.max(1, Math.min(s.cell.rowspan ?? 1, grid.length - r))
+          const cw = widths ? widths.slice(s.col, s.col + colspan) : null
+          const paragraphs = s.cell.paragraphs.length > 0 ? s.cell.paragraphs : [[]]
+          return {
+            type: 'tableCell',
+            attrs: {
+              colspan,
+              rowspan,
+              colwidth: cw && cw.every((w) => typeof w === 'number' && w > 0) ? cw : null,
+              align: s.cell.align ?? null,
+              bg: s.cell.bg ?? null,
+            },
+            content: paragraphs.map(paragraph),
+          }
+        }),
     })),
   }
 }
@@ -140,7 +153,7 @@ export function blocksToDoc(blocks: ImportBlock[], images: SavedImages = new Map
         content.push(paragraph(b.runs))
         break
       case 'table':
-        if (b.rows.length > 0) content.push(tableNode(b.rows))
+        if (b.rows.length > 0) content.push(tableNode(b))
         break
       case 'image': {
         const img = images.get(b.key)

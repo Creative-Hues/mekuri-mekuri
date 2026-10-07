@@ -78,11 +78,32 @@
 .print-root .table-add {
   display: none !important;
 }
-/* 表のつまみの場所は、印刷ではとらない */
+/*
+ * 表のつまみ・「＋」の場所は、印刷ではとらない。表は紙の幅まで使う。
+ * 紙より広い表:列の幅を決めた表は、比率を保って縮める(table.ts の fitToWidth)。
+ * 幅を決めていない表は、セルの最小の幅をなくして中身を折り返し、紙の幅に収める
+ */
 .print-root .table-block {
   --grip: 0px;
   --grip-col: 0px;
+  grid-template-columns: 0 minmax(0, 1fr) 0;
   column-gap: 0;
+}
+.print-root .table-scroll {
+  overflow: hidden;
+}
+/* 表の幅(割合・min(100%, …))を紙の幅から決めるため、中の枠は紙の幅にする */
+.print-root .table-inner {
+  width: auto;
+  padding: 0;
+}
+.print-root .table-block table:not(.is-fixed) {
+  max-width: 100%;
+}
+.print-root .table-block table:not(.is-fixed) td,
+.print-root .table-block table:not(.is-fixed) th {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .print-root .table-block td,
 .print-root .table-block th {

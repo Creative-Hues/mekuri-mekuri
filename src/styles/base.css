@@ -462,3 +462,39 @@ button {
   outline: 2px solid var(--accent-ink);
   outline-offset: 1px;
 }
+
+/* ---- 短い案内(Toast.tsx) ---- */
+.toast-area {
+  position: fixed;
+  left: 0;
+  right: 0;
+  /* スマホの下のツールバーより上に出す */
+  bottom: calc(84px + var(--safe-bottom));
+  z-index: 60;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+.toast {
+  max-width: min(420px, 100%);
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 14px;
+  line-height: 1.5;
+  box-shadow: var(--shadow);
+  animation: toast-in 0.18s ease-out;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}

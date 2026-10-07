@@ -20,7 +20,7 @@ interface DialogRequest {
 /** prompt の「OK」ボタンの目印(押したら入力欄の文字を返す) */
 const INPUT_OK = Symbol('ok')
 
-interface DialogApi {
+export interface DialogApi {
   /** ボタンを選ばせる。選んだボタンの value を返す */
   choose<T>(opts: { title?: string; message: ReactNode; buttons: DialogButton<T>[]; cancelValue: T }): Promise<T>
   /** 「はい/いいえ」の確認 */

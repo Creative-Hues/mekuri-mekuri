@@ -1,4 +1,4 @@
-import { plainText, type Block, type ExportNote } from './model'
+import { plainText, tableGrid, type Block, type ExportNote } from './model'
 import { stickyLabel } from './stickyLabel'
 
 /**
@@ -31,9 +31,14 @@ function blocksToLines(blocks: Block[]): string[] {
         break
       }
       case 'table':
-        // 表はタブ区切り(表計算ソフトに貼り付けやすい)。セルの中の改行は空白にする
-        for (const row of b.rows) {
-          lines.push(row.map((c) => c.paragraphs.map(plainText).join(' ').replace(/\s*\n\s*/g, ' ')).join('\t'))
+        // 表はタブ区切り(表計算ソフトに貼り付けやすい)。セルの中の改行は空白にする。
+        // 結合したセルは分けて出す(文字は左上のマスに入れ、ほかのマスは空にする)
+        for (const row of tableGrid(b.rows)) {
+          lines.push(
+            row
+              .map((s) => (s.origin ? s.cell.paragraphs.map(plainText).join(' ').replace(/\s*\n\s*/g, ' ') : ''))
+              .join('\t'),
+          )
         }
         break
       case 'noteLink':

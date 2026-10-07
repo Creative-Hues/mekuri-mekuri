@@ -30,11 +30,84 @@ export interface Run {
 
 export type ListKind = 'bullet' | 'ordered' | 'task'
 
+/** セルの文字の配置(ないとき・null は左) */
+export type CellAlign = 'center' | 'right'
+
 export interface TableCellBlock {
   /** セルの中の段落。1つの要素が1段落 */
   paragraphs: Run[][]
   bg: MarkerColorName | null
+  /** 結合(何列・何行ぶんか。ないときは 1) */
+  colspan?: number
+  rowspan?: number
+  /** 文字の配置(ないとき・null は左) */
+  align?: CellAlign | null
 }
+
+/**
+ * 表。rows は HTML の表と同じ形(結合したセルは左上の行にだけ入り、またがれた所にはセルがない)。
+ * 1マスずつの並びが要るときは tableGrid を使う
+ */
+export interface TableBlock {
+  kind: 'table'
+  rows: TableCellBlock[][]
+  /** 1行目・1列目を見出しにする(v6〜) */
+  headerRow?: boolean
+  headerColumn?: boolean
+  /** 列ごとの幅(px)。決めていない列は null。ないときは全部 null */
+  colWidths?: (number | null)[]
+}
+
+/** 表の1マス:そこにあるセルと、それがセルの左上のマスか(結合したセルのほかのマスは false) */
+export interface GridSlot {
+  cell: TableCellBlock
+  origin: boolean
+  /** そのセルの左上のマスの位置 */
+  row: number
+  col: number
+}
+
+/** 表を1マスずつの並び(行×列)にする。足りないマスは空のセルで埋める */
+export function tableGrid(rows: TableCellBlock[][]): GridSlot[][] {
+  const grid: (GridSlot | undefined)[][] = rows.map(() => [])
+  rows.forEach((row, r) => {
+    let c = 0
+    for (const cell of row) {
+      while (grid[r][c]) c++
+      const cs = Math.max(1, cell.colspan ?? 1)
+      const rs = Math.max(1, Math.min(cell.rowspan ?? 1, rows.length - r))
+      for (let dr = 0; dr < rs; dr++) {
+        for (let dc = 0; dc < cs; dc++) {
+          grid[r + dr][c + dc] = { cell, origin: dr === 0 && dc === 0, row: r, col: c }
+        }
+      }
+      c += cs
+    }
+  })
+  const width = Math.max(0, ...grid.map((g) => g.length))
+  return grid.map((g, r) =>
+    Array.from({ length: width }, (_, c) => g[c] ?? { cell: { paragraphs: [[]], bg: null }, origin: true, row: r, col: c }),
+  )
+}
+
+/**
+ * 列ごとの文字の配置(Markdown の表は列ごとにしか配置を決められないため)。
+ * 列のセル(結合したセルは左上のマスの列だけ)がすべて同じならその配置、ばらばらなら 'mixed'
+ */
+export function columnAligns(grid: GridSlot[][]): (CellAlign | null | 'mixed')[] {
+  const width = grid[0]?.length ?? 0
+  return Array.from({ length: width }, (_, c) => {
+    const values = new Set(grid.map((g) => g[c]).filter((s) => s.origin).map((s) => s.cell.align ?? null))
+    if (values.size === 0) return null
+    return values.size === 1 ? [...values][0] : 'mixed'
+  })
+}
+
+/** 結合したセルのある表か */
+export const hasMergedCells = (b: TableBlock) =>
+  b.rows.some((row) => row.some((c) => (c.colspan ?? 1) > 1 || (c.rowspan ?? 1) > 1))
+
+const isAlign = (v: unknown): v is CellAlign => v === 'center' || v === 'right'
 
 export type Block =
   | { kind: 'heading'; level: 1 | 2 | 3; runs: Run[] }
@@ -53,7 +126,7 @@ export type Block =
       continued: boolean
       runs: Run[]
     }
-  | { kind: 'table'; rows: TableCellBlock[][] }
+  | TableBlock
   | { kind: 'image'; imageId: string; width: number; height: number }
   /** 別ノート・別ページへのリンク(表示用の文字にしたもの) */
   | { kind: 'noteLink'; text: string }
@@ -182,15 +255,7 @@ export function contentToBlocks(doc: JSONContent | undefined, linkText: LinkText
         walkList(node, depth)
         return
       case 'table':
-        blocks.push({
-          kind: 'table',
-          rows: (node.content ?? []).map((row) =>
-            (row.content ?? []).map((cell) => ({
-              paragraphs: (cell.content ?? []).map(runsOf),
-              bg: isMarkerColor(cell.attrs?.bg) ? cell.attrs.bg : null,
-            })),
-          ),
-        })
+        blocks.push(tableOf(node, runsOf))
         return
       case 'image':
         if (typeof node.attrs?.imageId === 'string') {
@@ -253,4 +318,42 @@ export function safeFileName(title: string, ext: string): string {
       .slice(0, 80)
       .trim() || UNTITLED
   return `${base}.${ext}`
+}
+
+/** 表のノード(TipTap の JSON)を出力用の形にする */
+function tableOf(node: JSONContent, runsOf: (n: JSONContent) => Run[]): TableBlock {
+  const span = (v: unknown) => (typeof v === 'number' && v > 1 ? Math.floor(v) : 1)
+  const widthsByCell = new Map<TableCellBlock, unknown>()
+  const rows = (node.content ?? []).map((row) =>
+    (row.content ?? []).map((cell): TableCellBlock => {
+      const colspan = span(cell.attrs?.colspan)
+      const rowspan = span(cell.attrs?.rowspan)
+      const out: TableCellBlock = {
+        paragraphs: (cell.content ?? []).map(runsOf),
+        bg: isMarkerColor(cell.attrs?.bg) ? cell.attrs.bg : null,
+      }
+      if (colspan > 1) out.colspan = colspan
+      if (rowspan > 1) out.rowspan = rowspan
+      if (isAlign(cell.attrs?.align)) out.align = cell.attrs.align
+      widthsByCell.set(out, cell.attrs?.colwidth)
+      return out
+    }),
+  )
+  // 列の幅:セルの colwidth(結合したセルは、またぐ列の数だけ)から、列ごとに集める
+  const grid = tableGrid(rows)
+  const colWidths: (number | null)[] = Array(grid[0]?.length ?? 0).fill(null)
+  grid.forEach((g) =>
+    g.forEach((slot, c) => {
+      const cw = widthsByCell.get(slot.cell)
+      const w = Array.isArray(cw) ? cw[c - slot.col] : null
+      if (colWidths[c] === null && typeof w === 'number' && w > 0) colWidths[c] = w
+    }),
+  )
+  return {
+    kind: 'table',
+    rows,
+    headerRow: node.attrs?.headerRow === true,
+    headerColumn: node.attrs?.headerColumn === true,
+    colWidths,
+  }
 }

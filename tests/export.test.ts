@@ -349,3 +349,157 @@ describe('データベースから読む(loadExportSource)', () => {
     expect(linkLabel({ kind: 'missing' })).toBe('リンク先が見つかりません')
   })
 })
+
+// ---- 表(1.3.0〜:結合・配置・見出し・列の幅) ----
+
+/** 結合・配置・見出しのある表 */
+const richTable = (attrs: object = { headerRow: true, headerColumn: true }): JSONContent => {
+  const c = (text: string, a: object = {}): JSONContent => ({
+    type: 'tableCell',
+    attrs: { colspan: 1, rowspan: 1, colwidth: null, align: null, bg: null, ...a },
+    content: [text ? p(t(text)) : { type: 'paragraph' }],
+  })
+  return {
+    type: 'table',
+    attrs,
+    content: [
+      { type: 'tableRow', content: [c('項目'), c('数', { align: 'center' }), c('値段', { align: 'right' })] },
+      { type: 'tableRow', content: [c('果物', { rowspan: 2 }), c('りんごとみかん', { colspan: 2, align: 'center' })] },
+      { type: 'tableRow', content: [c('3', { align: 'center' }), c('120', { align: 'right' })] },
+    ],
+  }
+}
+
+describe('表の出力(結合・配置・見出し・列の幅)', () => {
+  it('model:結合・配置・見出し・列の幅を持ち、tableGrid で1マスずつに並べられる', async () => {
+    const { tableGrid } = await import('../src/export/model')
+    const withWidths = richTable()
+    withWidths.content![0].content![0].attrs!.colwidth = [120]
+    withWidths.content![1].content![1].attrs!.colwidth = [80, 100]
+    const [b] = contentToBlocks(doc(withWidths), linkText)
+    if (b.kind !== 'table') throw new Error('表ではない')
+    expect(b).toMatchObject({ headerRow: true, headerColumn: true, colWidths: [120, 80, 100] })
+    expect(b.rows[1][0]).toMatchObject({ rowspan: 2 })
+    expect(b.rows[1][1]).toMatchObject({ colspan: 2, align: 'center' })
+    const grid = tableGrid(b.rows)
+    expect(grid.map((r) => r.map((s) => (s.origin ? 'o' : '-')).join(''))).toEqual(['ooo', 'oo-', '-oo'])
+    expect(grid[2][0].cell).toBe(b.rows[1][0])
+  })
+
+  it('Markdown:結合したセルは分けて出し、見出しの列は太字、列の配置は揃っていれば :---: ・ ---:', () => {
+    const md = toMarkdown(buildExportNote('表', [page(doc(richTable()))], linkText))
+    expect(md).toContain(
+      ['| 項目 | 数 | 値段 |', '| --- | :---: | ---: |', '| **果物** | りんごとみかん |  |', '|  | 3 | 120 |'].join('\n'),
+    )
+  })
+
+  it('Markdown:列の中で配置がばらばらなら、その列は左寄せ', () => {
+    const tb = richTable()
+    tb.content![2].content![1].attrs!.align = null // 3列目の「120」だけ左
+    const md = toMarkdown(buildExportNote('表', [page(doc(tb))], linkText))
+    expect(md).toContain('| --- | :---: | --- |')
+  })
+
+  it('テキスト:結合したセルは分けて出す(文字は左上のマス)', () => {
+    const txt = toText(buildExportNote('表', [page(doc(richTable()))], linkText))
+    // 行の最後の空のマス(タブ)は、ほかの行と同じく行末の空白として取る
+    expect(txt).toContain(['項目\t数\t値段', '果物\tりんごとみかん', '\t3\t120'].join('\n'))
+  })
+
+  it('お知らせ:Markdown・テキストで表せなかったものだけ。Word はなし', async () => {
+    const { exportNotices } = await import('../src/export/notices')
+    const rich = buildExportNote('表', [page(doc(richTable()))], linkText)
+    const simple = buildExportNote('表', [page(doc({ type: 'table', content: [{ type: 'tableRow', content: [cell('a')] }] }))], linkText)
+    expect(exportNotices([rich], 'md')).toEqual([
+      '結合したセルは、分けて出しました(文字は左上のセルに入れています)。',
+      '表の見出しの列は、太字にしました。',
+    ])
+    expect(exportNotices([rich], 'txt')).toEqual(['結合したセルは、分けて出しました(文字は左上のマスに入れています)。'])
+    expect(exportNotices([rich], 'docx')).toEqual([])
+    expect(exportNotices([simple], 'md')).toEqual([])
+    expect(exportNotices([simple, rich], 'txt')).toHaveLength(1)
+  })
+
+  it('Word:結合(gridSpan・vMerge)・配置・見出しの行の繰り返し・見出しの色・固定の列の幅を書く', async () => {
+    const tb = richTable()
+    tb.content![0].content!.forEach((c, i) => (c.attrs!.colwidth = [[120], [80], [100]][i]))
+    tb.content![1].content![0].attrs!.colwidth = [120]
+    tb.content![1].content![1].attrs!.colwidth = [80, 100]
+    tb.content![2].content![0].attrs!.colwidth = [80]
+    tb.content![2].content![1].attrs!.colwidth = [100]
+    const blob = await Packer.toBlob(buildDocx(buildExportNote('表', [page(doc(tb))], linkText), new Map()))
+    const xml = await (await JSZip.loadAsync(await blob.arrayBuffer())).file('word/document.xml')!.async('string')
+    expect(xml).toContain('<w:gridSpan w:val="2"/>')
+    expect(xml).toMatch(/<w:vMerge w:val="restart"\/>/)
+    expect(xml).toMatch(/<w:vMerge w:val="continue"\/>|<w:vMerge\/>/)
+    expect(xml).toContain('<w:tblHeader/>')
+    expect(xml).toContain('w:fill="f0f1f2"')
+    expect(xml).toContain('<w:jc w:val="center"/>')
+    expect(xml).toContain('<w:jc w:val="right"/>')
+    expect(xml).toContain('<w:tblLayout w:type="fixed"/>')
+    expect(xml).toMatch(/<w:gridCol w:w="1800"\/><w:gridCol w:w="1200"\/><w:gridCol w:w="1500"\/>/)
+  })
+})
+
+describe('まとめて書き出す(ZIP)', () => {
+  it('同じ名前のファイルには(2)(3)を付ける(大文字・小文字は同じとみなす)', async () => {
+    const { uniqueNames } = await import('../src/export/exportNote')
+    expect(uniqueNames(['a.md', 'b.md', 'a.md', 'A.md', '無題のノート.md'])).toEqual([
+      'a.md',
+      'b.md',
+      'a(2).md',
+      'A(3).md',
+      '無題のノート.md',
+    ])
+  })
+
+  it('ノートごとのファイルを1つの ZIP に入れる', async () => {
+    const { buildNotesZip } = await import('../src/export/exportNote')
+    const src = (title: string, text: string) => ({
+      note: { id: title } as never,
+      pages: [],
+      model: buildExportNote(title, [page(doc(p(t(text))))], linkText),
+      images: new Map(),
+    })
+    const blob = await buildNotesZip([src('メモ', 'いち'), src('メモ', 'に'), src('日記', 'さん')], 'txt')
+    const zip = await JSZip.loadAsync(await blob.arrayBuffer())
+    expect(Object.keys(zip.files).sort()).toEqual(['メモ(2).txt', 'メモ.txt', '日記.txt'].sort())
+    expect(await zip.file('メモ(2).txt')!.async('string')).toContain('に')
+  })
+})
+
+describe('PDF:紙より広い表', () => {
+  it('列の幅を決めた表は、読むだけの表示(印刷)で列の幅を割合にし、紙の幅を超えないようにする', async () => {
+    const { Editor } = await import('@tiptap/core')
+    const { buildExtensions } = await import('../src/editor/extensions')
+    const c = (w: number): JSONContent => ({
+      type: 'tableCell',
+      attrs: { colspan: 1, rowspan: 1, colwidth: [w], align: null, bg: null },
+      content: [{ type: 'paragraph' }],
+    })
+    const content = doc({ type: 'table', content: [{ type: 'tableRow', content: [c(600), c(300), c(300)] }] })
+    const hooks = { undo: () => {}, redo: () => {}, closeGroup: () => {} }
+    const widthsOf = (e: InstanceType<typeof Editor>) =>
+      Array.from(e.view.dom.querySelectorAll('col')).map((col) => (col as HTMLElement).style.width)
+
+    // 編集する画面:決めた幅(px)のまま(表は横にスクロールする)
+    const editing = new Editor({ extensions: buildExtensions(hooks), content })
+    expect(widthsOf(editing)).toEqual(['600px', '300px', '300px'])
+    editing.destroy()
+
+    // 印刷:比率(50% / 25% / 25%)にし、表の幅は「紙の幅と合計の小さいほう」
+    const print = new Editor({ extensions: buildExtensions(hooks), content, editable: false })
+    await Promise.resolve()
+    expect(widthsOf(print)).toEqual(['50%', '25%', '25%'])
+    const style = print.view.dom.querySelector('table')!.getAttribute('style') ?? ''
+    // (jsdom は min() を読めないことがあるので、書けたときだけ確かめる)
+    if (style.includes('width')) expect(style).toContain('min(100%, 1200px)')
+    print.destroy()
+  })
+
+  it('印刷用の CSS:つまみ・「＋」の場所をとらず、幅のない表は折り返して紙の幅に収める', () => {
+    const css = readFileSync('src/styles/print.css', 'utf8')
+    expect(css).toMatch(/\.print-root \.table-block \{[^}]*grid-template-columns: 0 minmax\(0, 1fr\) 0/)
+    expect(css).toMatch(/table:not\(\.is-fixed\) td,[^{]*\{[^}]*min-width: 0/)
+  })
+})

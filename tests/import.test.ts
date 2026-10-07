@@ -22,15 +22,19 @@ const h = (level: number, text: string): JSONContent => ({ type: 'heading', attr
 const li = (...content: JSONContent[]): JSONContent => ({ type: 'listItem', content })
 const task = (checked: boolean, text: string): JSONContent => ({ type: 'taskItem', attrs: { checked }, content: [p(t(text))] })
 const doc = (...content: JSONContent[]): JSONContent => ({ type: 'doc', content })
-const cell = (text: string, bg: string | null = null): JSONContent => ({
+const cell = (text: string, bg: string | null = null, align: string | null = null): JSONContent => ({
   type: 'tableCell',
-  attrs: { colspan: 1, rowspan: 1, colwidth: null, bg },
+  attrs: { colspan: 1, rowspan: 1, colwidth: null, align, bg },
   content: [text ? p(t(text)) : p()],
 })
-const table = (...rows: string[][]): JSONContent => ({
+/** 表(見出しなし)。セルは文字か、cell() で作ったもの */
+const table = (...rows: (string | JSONContent)[][]): JSONContent => ({
   type: 'table',
-  content: rows.map((r) => ({ type: 'tableRow', content: r.map((c) => cell(c)) })),
+  attrs: { headerRow: false, headerColumn: false },
+  content: rows.map((r) => ({ type: 'tableRow', content: r.map((c) => (typeof c === 'string' ? cell(c) : c)) })),
 })
+/** 1行目を見出しにした表(Markdown の表は1行目が必ず見出しになる) */
+const headed = (t: JSONContent): JSONContent => ({ ...t, attrs: { ...t.attrs, headerRow: true } })
 
 const linkText: LinkText = () => 'リンク'
 let pageNo = 0
@@ -58,7 +62,8 @@ const MD_PAGE1 = doc(
   },
   { type: 'orderedList', content: [li(p(t('一つ目'))), li(p(t('二つ目')))] },
   { type: 'taskList', content: [task(false, 'やること'), task(true, 'やったこと')] },
-  table(['名前', '数'], ['a|b', '*3*']),
+  // 列ごとの配置(Markdown の :---: ・ ---:)も戻る
+  headed(table(['名前', cell('数', null, 'right')], ['a|b', cell('*3*', null, 'right')])),
   p(t('# 見出しではない 1. 番号でもない [括弧] <タグ> a_b_c')),
 )
 

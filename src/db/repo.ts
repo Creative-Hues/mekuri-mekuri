@@ -84,6 +84,30 @@ export async function setFavorite(noteId: string, favorite: boolean): Promise<vo
   await db.notes.update(noteId, { favorite })
 }
 
+/**
+ * 複数のノートのお気に入りを決める(ノートごとの値。本棚でまとめて付ける/外す・元に戻す)。
+ * もうないノート(完全に削除したもの)は飛ばす
+ */
+export async function setFavorites(values: Record<string, boolean>): Promise<void> {
+  await db.transaction('rw', db.notes, async () => {
+    await Promise.all(Object.entries(values).map(([id, favorite]) => db.notes.update(id, { favorite })))
+  })
+}
+
+/**
+ * 複数のノートの「ゴミ箱に入れた日時」を決める(null で本棚に戻す)。
+ * まとめてゴミ箱へ・まとめて元に戻す・その「元に戻す」で使う。もうないノートは飛ばす
+ */
+export async function setNotesDeletedAt(values: Record<string, number | null>): Promise<void> {
+  await db.transaction('rw', db.notes, async () => {
+    await Promise.all(Object.entries(values).map(([id, deletedAt]) => db.notes.update(id, { deletedAt })))
+  })
+}
+
+/** 複数のノートをゴミ箱に入れる */
+export const trashNotes = (noteIds: string[], now = Date.now()) =>
+  setNotesDeletedAt(Object.fromEntries(noteIds.map((id) => [id, now])))
+
 /** 本棚の並びを noteIds の順にする(order を 0,1,2… に振る)。noteIds にないノートは変えない */
 export async function setNoteOrder(noteIds: string[]): Promise<void> {
   await db.transaction('rw', db.notes, async () => {
@@ -186,6 +210,30 @@ export async function restorePage(pageId: string): Promise<Page | null> {
   const page = await db.pages.get(pageId)
   if (!page || page.deletedAt == null) return null
   return insertPage(page.noteId, page.deletedIndex ?? Infinity, page)
+}
+
+/** ゴミ箱のページをまとめて元に戻す。戻したページの、ゴミ箱に入れた日時を返す(「元に戻す」でゴミ箱へ戻すため) */
+export async function restorePages(pageIds: string[]): Promise<{ id: string; deletedAt: number }[]> {
+  const done: { id: string; deletedAt: number }[] = []
+  // 同じノートのページは、ゴミ箱に入れたときの位置の小さい順に戻す(位置がずれないように)
+  const pages = (await db.pages.bulkGet(pageIds))
+    .filter((p): p is Page => !!p && p.deletedAt != null)
+    .sort((a, b) => (a.deletedIndex ?? 0) - (b.deletedIndex ?? 0))
+  for (const page of pages) {
+    if (await restorePage(page.id)) done.push({ id: page.id, deletedAt: page.deletedAt! })
+  }
+  return done
+}
+
+/** ページをゴミ箱へ戻す(まとめて元に戻したのを取り消すとき。ゴミ箱に入れた日時は元のまま) */
+export async function retrashPages(records: { id: string; deletedAt: number }[]): Promise<void> {
+  for (const r of records) await trashPage(r.id, r.deletedAt)
+}
+
+/** ゴミ箱のノート・ページをまとめて完全に削除する */
+export async function purgeMany(noteIds: string[], pageIds: string[]): Promise<void> {
+  for (const id of noteIds) await purgeNote(id)
+  await db.pages.bulkDelete(pageIds)
 }
 
 /** ゴミ箱のページを完全に削除する */

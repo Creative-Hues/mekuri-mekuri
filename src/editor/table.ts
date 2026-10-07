@@ -4,6 +4,7 @@ import { Slice, type Node as PMNode } from '@tiptap/pm/model'
 import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@tiptap/pm/state'
 import { CellSelection, TableMap, addColumn, addRow, cellAround } from '@tiptap/pm/tables'
 import { Decoration, DecorationSet, type EditorView, type NodeView, type ViewMutationRecord } from '@tiptap/pm/view'
+import { showToast } from '../components/Toast'
 import { isMarkerColor, type MarkerColorName } from './palette'
 import { upgradeTablesToV6 } from './tableMigrate'
 import { MIN_COL_WIDTH, columnWidths, moveLine, selectCells, selectLine, setColumnWidth, tablePosOfCell, type Axis } from './tableOps'
@@ -217,8 +218,9 @@ class TableBlockView implements NodeView {
 
     this.knob.addEventListener('pointerdown', (e) => this.startRangeDrag(e))
 
-    if (!view.editable) this.dom.classList.add('is-readonly')
-    this.renderNode()
+    this.syncEditable()
+    // 読むだけのエディタ(印刷)は、作ったあとで「編集できない」になるので、もう一度合わせる
+    queueMicrotask(() => this.syncEditable())
     let set = liveViews.get(view)
     if (!set) liveViews.set(view, (set = new Set()))
     set.add(this)
@@ -256,7 +258,18 @@ class TableBlockView implements NodeView {
 
   /** エディタの表示が変わったとき(選択の変化など)に呼ばれる */
   viewUpdated() {
+    this.syncEditable()
     this.schedule()
+  }
+
+  /** 編集できるか(読むだけの表示か)が変わったら、見た目を合わせ直す */
+  private readonly: boolean | null = null
+  private syncEditable() {
+    const ro = !this.view.editable
+    if (ro === this.readonly) return
+    this.readonly = ro
+    this.dom.classList.toggle('is-readonly', ro)
+    this.renderNode()
   }
 
   // ---- 見た目 ----
@@ -271,16 +284,23 @@ class TableBlockView implements NodeView {
     this.applyWidths(widths)
   }
 
-  /** 列の幅を colgroup に書く(全部の列に幅があれば、表の幅も決める) */
+  /**
+   * 列の幅を colgroup に書く(全部の列に幅があれば、表の幅も決める)。
+   * 読むだけの表示(印刷・PDF)では、列の幅を合計に対する割合にし、表の幅を「紙の幅と合計の小さいほう」にする。
+   * 紙より広い表は、比率を保って紙の幅に収まる(印刷の紙は画面に出ていない間に描くので、測らずに CSS で決める)
+   */
   private applyWidths(widths: (number | null)[]) {
     while (this.colgroup.children.length > widths.length) this.colgroup.lastElementChild!.remove()
     while (this.colgroup.children.length < widths.length) this.colgroup.appendChild(document.createElement('col'))
-    widths.forEach((w, i) => {
-      ;(this.colgroup.children[i] as HTMLElement).style.width = w ? `${w}px` : ''
-    })
     const fixed = widths.length > 0 && widths.every((w) => !!w)
+    const total = widths.reduce<number>((s, w) => s + (w ?? 0), 0)
+    const fit = fixed && !this.view.editable
+    widths.forEach((w, i) => {
+      const col = this.colgroup.children[i] as HTMLElement
+      col.style.width = !w ? '' : fit ? `${((w / total) * 100).toFixed(4)}%` : `${w}px`
+    })
     this.table.classList.toggle('is-fixed', fixed)
-    this.table.style.width = fixed ? `${widths.reduce<number>((s, w) => s + (w ?? 0), 0)}px` : ''
+    this.table.style.width = fixed ? (fit ? `min(100%, ${total}px)` : `${total}px`) : ''
   }
 
   private schedule() {
@@ -302,6 +322,8 @@ class TableBlockView implements NodeView {
   /** つまみ・幅の線・丸いつまみを、表の今の行・列に合わせて置き直す */
   private layout() {
     if (!this.dom.isConnected) return
+    // 読むだけの表示(印刷・PDF)では、つまみは出さない
+    if (!this.view.editable) return
     const active = this.view.editable && this.isActive()
     this.dom.classList.toggle('is-active', active)
     const pos = this.getPos()
@@ -486,8 +508,10 @@ class TableBlockView implements NodeView {
           const to = drop > index ? drop - 1 : drop
           if (to !== index) {
             this.hooks?.closeGroup()
-            moveLine(pos, axis, index, to)(this.view.state, this.view.dispatch)
+            const moved = moveLine(pos, axis, index, to)(this.view.state, this.view.dispatch)
             this.hooks?.closeGroup()
+            // 動かせなかった(結合したセルのまとまりの中へ動かそうとした)ときは、短く知らせる
+            if (!moved) showToast('結合したセルの中には移動できません')
           }
         }
         this.schedule()

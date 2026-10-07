@@ -1,4 +1,4 @@
-import type { Block, ExportNote, Run } from './model'
+import { columnAligns, tableGrid, type Block, type ExportNote, type GridSlot, type Run, type TableBlock } from './model'
 import { stickyLabel } from './stickyLabel'
 
 /**
@@ -48,21 +48,32 @@ export function runsToMd(runs: Run[], newline = '\\\n'): string {
     .join('')
 }
 
-function tableToMd(rows: Extract<Block, { kind: 'table' }>['rows']): string[] {
-  if (rows.length === 0) return []
-  const cols = Math.max(...rows.map((r) => r.length))
-  const cellText = (paragraphs: Run[][]) =>
-    paragraphs
+/**
+ * 表。Markdown で表せないものは近い形にする(exportNotices で知らせる):
+ * 結合したセルは分けて出し(文字は左上のセルに)、見出しの列は太字、列の中で配置がばらばらなら左寄せ。
+ * Markdown の表は1行目が見出しの行になる(見出しにしていない表も同じ)
+ */
+function tableToMd(b: TableBlock): string[] {
+  const grid = tableGrid(b.rows)
+  if (grid.length === 0) return []
+  const cols = grid[0].length
+  const cellText = (slot: GridSlot, r: number) => {
+    if (!slot.origin) return ''
+    const text = slot.cell.paragraphs
       .map((p) => runsToMd(p, '<br>'))
       .join('<br>')
       .replace(/\|/g, '\\|')
-  const line = (cells: string[]) => `| ${Array.from({ length: cols }, (_, i) => cells[i] ?? '').join(' | ')} |`
-  const [head, ...body] = rows
-  // Markdown の表は1行目が見出し行になる
+    const boldCol = b.headerColumn && slot.col === 0 && !(b.headerRow && r === 0)
+    return boldCol && text.trim() ? `**${text}**` : text
+  }
+  const line = (cells: string[]) => `| ${cells.join(' | ')} |`
+  const aligns = columnAligns(grid)
+  const rule = aligns.map((a) => (a === 'center' ? ':---:' : a === 'right' ? '---:' : '---'))
+  const [head, ...body] = grid
   return [
-    line(head.map((c) => cellText(c.paragraphs))),
-    line(Array.from({ length: cols }, () => '---')),
-    ...body.map((r) => line(r.map((c) => cellText(c.paragraphs)))),
+    line(head.map((s) => cellText(s, 0))),
+    line(rule.slice(0, cols)),
+    ...body.map((g, i) => line(g.map((s) => cellText(s, i + 1)))),
   ]
 }
 
@@ -94,7 +105,7 @@ function blocksToMd(blocks: Block[]): string {
         break
       }
       case 'table':
-        text = tableToMd(b.rows).join('\n')
+        text = tableToMd(b).join('\n')
         break
       case 'image':
         text = '[画像]'

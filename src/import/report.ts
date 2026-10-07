@@ -15,7 +15,7 @@ const MESSAGES: Record<IssueKind, (n: number) => string> = {
   brokenImage: (n) => `開けなかった画像(${n}枚)は、「[画像]」と書きました`,
   unsupportedImage: (n) => `表示できない形式の画像(${n}枚。EMF・WMF など)は、「[画像]」と書きました`,
   imageInTable: (n) => `表の中の画像(${n}枚)は、表のすぐ後ろに置きました`,
-  mergedCell: (n) => `表の結合したセル・表の中の表(${n}か所)は、分けて並べました`,
+  mergedCell: (n) => `表の中の表(${n}か所)は、外の表のセルの中に段落として並べました`,
   shape: (n) => `図形・テキストボックス・グラフ・数式(${n}か所)は、読み込んでいません`,
   footnote: (n) => `脚注・文末脚注(${n}か所)は、読み込んでいません`,
   comment: (n) => `コメント(${n}か所)は、読み込んでいません`,

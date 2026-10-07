@@ -15,7 +15,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { SHELF_BOOK_BUTTONS, SHELF_HEADER_BUTTONS } from '../src/screens/shelfButtons'
+import { SHELF_BOOK_BUTTONS, SHELF_HEADER_BUTTONS, SHELF_SELECT_BUTTONS } from '../src/screens/shelfButtons'
 import { ShelfHelp } from '../src/screens/ShelfHelp'
 import { onboardingSlides } from '../src/screens/Onboarding'
 import { forDevice, type ButtonDef } from '../src/help/buttons'
@@ -28,6 +28,7 @@ import * as onboarding from '../src/onboarding/onboarding'
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
 const headerIds = Object.keys(SHELF_HEADER_BUTTONS)
 const bookIds = Object.keys(SHELF_BOOK_BUTTONS)
+const selectIds = Object.keys(SHELF_SELECT_BUTTONS)
 
 let root: Root
 let host: HTMLDivElement
@@ -48,6 +49,9 @@ describe('本棚のボタンの一覧と画面のボタン', () => {
     const code = source('src/screens/Bookshelf.tsx')
     const ids = [...code.matchAll(/btn="(\w+)"|shelfButtonAttrs\('(\w+)'\)/g)].map((m) => m[1] ?? m[2])
     expect(ids).toEqual([...headerIds, ...bookIds])
+    // 選ぶモードの帯のボタン
+    const selects = [...code.matchAll(/select="(\w+)"/g)].map((m) => m[1])
+    expect(selects).toEqual(selectIds)
   })
 
   it('本棚の上のボタンは ShelfHeaderButton だけで作る(一覧を通さないボタンを置かない)', () => {
@@ -65,7 +69,11 @@ describe('本棚のボタンの一覧と画面のボタン', () => {
   })
 
   it('説明に、端末で見た目の変わる記号(☆ など)を使わない', () => {
-    const all: ButtonDef[] = [...Object.values(SHELF_HEADER_BUTTONS), ...Object.values(SHELF_BOOK_BUTTONS)]
+    const all: ButtonDef[] = [
+      ...Object.values(SHELF_HEADER_BUTTONS),
+      ...Object.values(SHELF_BOOK_BUTTONS),
+      ...Object.values(SHELF_SELECT_BUTTONS),
+    ]
     for (const d of all) for (const m of [true, false]) expect(forDevice(d.description, m)).not.toMatch(/[☆★]/)
   })
 })
@@ -76,7 +84,7 @@ describe('本棚のヘルプ', () => {
   it('本棚のボタンをすべて、同じ順で出す', () => {
     help(true)
     const shown = [...host.querySelectorAll('[data-help-id]')].map((li) => li.getAttribute('data-help-id'))
-    expect(shown).toEqual([...headerIds, ...bookIds])
+    expect(shown).toEqual([...headerIds, ...bookIds, ...selectIds])
   })
 
   it('「使い方を見る」から最初の使い方説明を開ける', () => {

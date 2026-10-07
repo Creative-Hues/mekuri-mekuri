@@ -26,3 +26,9 @@ export const MARKER_HEX: Record<MarkerColorName, string> = {
   purple: 'e4d9f2',
   gray: 'e6e4df',
 }
+
+/**
+ * 表の見出しの行・列の色(画面の --table-head を白い紙に重ねた色)。
+ * Word の読み込みでは、この色のセルは「見出し」として読み、セルの色にはしない
+ */
+export const TABLE_HEAD_HEX = 'f0f1f2'

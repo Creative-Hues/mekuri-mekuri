@@ -86,7 +86,8 @@ describe('PDF の紙と番号(print.css・PrintView)', () => {
 
   it('番号は紙の縁の内側の下中央に「1 / 6」の形で出す', () => {
     expect(css).toMatch(/\.print-number \{[^}]*position: absolute;[^}]*bottom: 10px;[^}]*text-align: center;/)
-    expect(view).toMatch(/\{i \+ 1\} \/ \{sheets\.length\}/)
+    // ページ番号はノートごとに数える(本棚でまとめて書き出すときも、ノートごとに 1 から)
+    expect(view).toMatch(/\{i \+ 1\} \/ \{total\}/)
   })
 
   it('測るときは、印刷と同じ幅(A4 から左右の余白を引いた 186mm)で並べる', () => {

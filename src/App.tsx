@@ -8,6 +8,7 @@ import { Trash } from './screens/Trash'
 import { NoteView } from './screens/note/NoteView'
 import { Sidebar } from './components/Sidebar'
 import { DialogProvider, useDialog } from './components/Dialog'
+import { Toasts } from './components/Toast'
 import { shouldRemindBackup, snoozeBackupReminder } from './backup/reminder'
 import { exportBackup } from './backup/export'
 import { SearchPanel } from './screens/SearchPanel'
@@ -105,6 +106,7 @@ function Shell() {
         />
       )}
       <UpdateBanner />
+      <Toasts />
     </div>
   )
 }

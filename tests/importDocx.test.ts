@@ -4,7 +4,7 @@ import { Packer } from 'docx'
 import type { JSONContent } from '@tiptap/core'
 import type { Page, Sticky, StickyColor } from '../src/db/db'
 import { buildExportNote, type LinkText } from '../src/export/model'
-import { buildDocx, type DocxImage } from '../src/export/toDocx'
+import { buildDocx, docxColumnWidths, type DocxImage } from '../src/export/toDocx'
 import { parseDocx } from '../src/import/fromDocx'
 import { blocksToDoc, type SavedImages } from '../src/import/toContent'
 import { issueMessages } from '../src/import/report'
@@ -23,7 +23,7 @@ const task = (checked: boolean, text: string): JSONContent => ({ type: 'taskItem
 const doc = (...content: JSONContent[]): JSONContent => ({ type: 'doc', content })
 const cell = (text: string, bg: string | null = null): JSONContent => ({
   type: 'tableCell',
-  attrs: { colspan: 1, rowspan: 1, colwidth: null, bg },
+  attrs: { colspan: 1, rowspan: 1, colwidth: null, align: null, bg },
   content: [text ? p(t(text)) : p()],
 })
 const color = (c: string) => ({ type: 'textColor', attrs: { color: c } })
@@ -149,6 +149,7 @@ describe('書き出した Word → 読み込み', () => {
       { type: 'taskList', content: [task(false, 'やること'), task(true, 'やったこと')] },
       {
         type: 'table',
+        attrs: { headerRow: false, headerColumn: false },
         content: [
           { type: 'tableRow', content: [cell('名前', 'blue'), cell('数')] },
           { type: 'tableRow', content: [cell('a'), cell('', 'gray')] },
@@ -178,6 +179,42 @@ describe('書き出した Word → 読み込み', () => {
     expect(d.images.get('docx-1')?.mime).toBe('image/png')
     expect(new Uint8Array(d.images.get('docx-1')!.data)).toEqual(PNG)
     expect(issueMessages(d.issues)).toEqual([])
+  })
+
+  it('表:結合(横・縦)・列の幅・セルごとの配置・見出しの行と列・セルの色が、そのまま戻る', async () => {
+    const c = (text: string, attrs: { colspan?: number; rowspan?: number; colwidth?: number[]; align?: string | null; bg?: string | null } = {}): JSONContent => ({
+      type: 'tableCell',
+      attrs: { colspan: 1, rowspan: 1, colwidth: null, align: null, bg: null, ...attrs },
+      content: [text ? p(t(text)) : p()],
+    })
+    const w = [120, 80, 100]
+    const table: JSONContent = {
+      type: 'table',
+      attrs: { headerRow: true, headerColumn: true },
+      content: [
+        { type: 'tableRow', content: [c('項目', { colwidth: [w[0]] }), c('数', { colwidth: [w[1]], align: 'center' }), c('値段', { colwidth: [w[2]], align: 'right' })] },
+        { type: 'tableRow', content: [c('果物', { rowspan: 2, colwidth: [w[0]] }), c('りんごとみかん', { colspan: 2, colwidth: [w[1], w[2]], align: 'center', bg: 'yellow' })] },
+        { type: 'tableRow', content: [c('3', { colwidth: [w[1]], align: 'right' }), c('120', { colwidth: [w[2]] })] },
+        { type: 'tableRow', content: [c('野菜', { colwidth: [w[0]] }), c('', { colwidth: [w[1]], bg: 'gray' }), c('80', { colwidth: [w[2]], bg: 'green', align: 'right' })] },
+      ],
+    }
+    // 見出しのセルの色・ふつうの表(幅なし)も並べて、取り違えないことを確かめる
+    const plain: JSONContent = {
+      type: 'table',
+      attrs: { headerRow: false, headerColumn: false },
+      content: [{ type: 'tableRow', content: [c('x', { bg: 'gray' }), c('y')] }],
+    }
+    const d = await exportedDocx('表', [page(doc(table, p(), plain, p()))])
+    expect(pagesOf(d)[0].content).toEqual(doc(table, p(), plain, p()))
+    expect(issueMessages(d.issues)).toEqual([])
+  })
+
+  it('紙の幅より広い表は、Word では比率を保って本文の幅に収める', () => {
+    // 本文の幅は 9026 twip(約 601px)
+    expect(docxColumnWidths([400, 400, 200], 3)).toEqual([3610, 3610, 1805])
+    expect(docxColumnWidths([100, null], 2)).toEqual([1500, 1500])
+    expect(docxColumnWidths(undefined, 2)).toBeNull()
+    expect(docxColumnWidths([null, null], 2)).toBeNull()
   })
 
   it('1ページ目が空のノート・空のページも、ページの数が戻る', async () => {
@@ -300,7 +337,7 @@ describe('Word で作ったファイル', () => {
     ])
   })
 
-  it('表:結合したセルは分けて並べ、セルの中の画像は表の後ろに置いて知らせる', async () => {
+  it('表:結合したセルは結合したまま読み、セルの中の画像は表の後ろに置いて知らせる', async () => {
     const tc = (inner: string, tcPr = '') => `<w:tc>${tcPr ? `<w:tcPr>${tcPr}</w:tcPr>` : ''}${inner}</w:tc>`
     const d = await parse(
       '<w:tbl>' +
@@ -310,28 +347,27 @@ describe('Word で作ったファイル', () => {
         '</w:tbl>' +
         para(''),
     )
-    const cellOf = (paras: string[], bg: string | null = null): JSONContent => ({
+    const cellOf = (paras: string[], bg: string | null = null, span: { colspan?: number; rowspan?: number } = {}): JSONContent => ({
       type: 'tableCell',
-      attrs: { colspan: 1, rowspan: 1, colwidth: null, bg },
+      attrs: { colspan: span.colspan ?? 1, rowspan: span.rowspan ?? 1, colwidth: null, align: null, bg },
       content: paras.length ? paras.map((s) => (s ? p(t(s)) : p())) : [p()],
     })
     expect(pagesOf(d)[0].content).toEqual(
       doc(
         {
           type: 'table',
+          attrs: { headerRow: false, headerColumn: false },
           content: [
-            { type: 'tableRow', content: [cellOf(['横に2つ'], 'yellow'), cellOf([]), cellOf(['c'])] },
-            { type: 'tableRow', content: [cellOf(['縦']), cellOf(['x']), cellOf([''])] },
-            { type: 'tableRow', content: [cellOf([]), cellOf(['一', '二']), cellOf([''])] },
+            { type: 'tableRow', content: [cellOf(['横に2つ'], 'yellow', { colspan: 2 }), cellOf(['c'])] },
+            { type: 'tableRow', content: [cellOf(['縦'], null, { rowspan: 2 }), cellOf(['x']), cellOf([''])] },
+            { type: 'tableRow', content: [cellOf(['一', '二']), cellOf([''])] },
           ],
         },
         { type: 'image', attrs: { imageId: 'img1', width: 1, height: 1 } },
       ),
     )
-    expect(issueMessages(d.issues)).toEqual([
-      '表の中の画像(1枚)は、表のすぐ後ろに置きました',
-      '表の結合したセル・表の中の表(3か所)は、分けて並べました',
-    ])
+    // 結合したセルはお知らせしない(そのまま読めるため)
+    expect(issueMessages(d.issues)).toEqual(['表の中の画像(1枚)は、表のすぐ後ろに置きました'])
   })
 
   it('画像:表示できない形式・ファイルの外の画像は「[画像]」、図形・テキストボックスは読み込まない', async () => {

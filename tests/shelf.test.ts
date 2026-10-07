@@ -5,6 +5,16 @@ import { fullOrder, moveInSection, shelfSections } from '../src/shelf/order'
 import { ShelfHistory } from '../src/history/shelfHistory'
 import { legacyDesign } from '../src/design/defaults'
 
+/** 何もしない本棚の履歴の操作(使う所だけ差し替える) */
+const noop = {
+  setOrder: async () => {},
+  setFavorite: async () => {},
+  setFavorites: async () => {},
+  setNotesDeletedAt: async () => {},
+  restorePages: async () => [],
+  retrashPages: async () => {},
+}
+
 // 本棚:お気に入りの段・段の中での並び替え・本棚の元に戻す/やり直し
 
 const note = (id: string, order: number, favorite = false, deletedAt: number | null = null): Note => ({
@@ -82,7 +92,7 @@ describe('本棚(データベース)', () => {
   })
 
   it('本棚の元に戻す/やり直し:並び替えとお気に入り', async () => {
-    const history = new ShelfHistory({ setOrder: setNoteOrder, setFavorite })
+    const history = new ShelfHistory({ ...noop, setOrder: setNoteOrder, setFavorite })
     const a = await createNote('a')
     const b = await createNote('b') // 並び:b a
     const before = await shelf()
@@ -107,7 +117,7 @@ describe('本棚(データベース)', () => {
   })
 
   it('変わっていない操作は履歴に残さない', () => {
-    const history = new ShelfHistory({ setOrder: async () => {}, setFavorite: async () => {} })
+    const history = new ShelfHistory(noop)
     history.record({ kind: 'order', before: ['a', 'b'], after: ['a', 'b'] })
     history.record({ kind: 'favorite', noteId: 'a', before: true, after: true })
     expect(history.canUndo()).toBe(false)

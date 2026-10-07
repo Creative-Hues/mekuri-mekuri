@@ -1,5 +1,6 @@
 import JSZip from 'jszip'
-import type { ListKind, Run, TableCellBlock } from '../export/model'
+import type { CellAlign, ListKind, Run, TableCellBlock } from '../export/model'
+import { TABLE_HEAD_HEX } from '../export/colors'
 import type { LineStyleName } from '../editor/palette'
 import { parseStickyLabel } from '../export/stickyLabel'
 import { highlightColor, nearestMarkerColor, nearestTextColor } from './colors'
@@ -25,7 +26,7 @@ import {
  *   Word が表示のために入れる区切り(lastRenderedPageBreak)は使わない
  * - 見出し(見出し1〜3・アウトラインレベル)・箇条書き・番号付き・ToDo(「□」「■」「☐」「☒」で始まる段落)
  * - 太字・取り消し線・下線(実線・波線・二重線・点線と色)・文字色・マーカー → めくりめくりの近い色
- * - 表(セルの背景色)・画像(PNG・JPEG・GIF・WebP・BMP)・Webリンク(http・https・mailto だけ)
+ * - 表(セルの背景色・結合・列の幅(幅を固定した表だけ)・セルの文字の配置・見出しの行と列)・画像(PNG・JPEG・GIF・WebP・BMP)・Webリンク(http・https・mailto だけ)
  * - 「表題」か、先頭の「見出し1」をノート名にする
  * - 太字の「付箋(色)」(古い書き出しは「付箋」)から下を、そのページの付箋に戻す
  */
@@ -708,36 +709,99 @@ class Builder {
     this.lastList = { depth: d }
   }
 
-  /** 表を入れる */
+  /**
+   * 表を入れる。
+   * - 横の結合(gridSpan)・縦の結合(vMerge)は、そのまま結合したセルにする
+   * - 列の幅は、幅を固定した表(w:tblLayout が fixed)だけ w:gridCol から読む(自動で合わせる表は中身に合わせる)
+   * - セルの段落の配置(w:jc)がすべて同じ中央・右なら、セルの配置にする
+   * - 見出しの行:1行目が「各ページの先頭に繰り返す」(w:tblHeader)か、1行目のセルがすべて見出しの色。
+   *   見出しの列:2行以上あり、各行の1列目のセルがすべて見出しの色。見出しの色(TABLE_HEAD_HEX)はセルの色にしない
+   */
   table(tbl: Element) {
     const ctx = this.ctx
     const images: string[] = []
     const rows: TableCellBlock[][] = []
-    for (const tr of kids(tbl, 'tr')) {
+    /** マスごとの、そのマスのセル(縦の結合で、下のマスから上のセルを探すため) */
+    const grid: (TableCellBlock | undefined)[][] = []
+    /** 見出しの色のセル */
+    const headFill = new Set<TableCellBlock>()
+    /** セルの左上のマスの列 */
+    const colOf = new Map<TableCellBlock, number>()
+    let firstRowRepeats = false
+    kids(tbl, 'tr').forEach((tr, r) => {
       const row: TableCellBlock[] = []
+      grid[r] = []
+      if (r === 0 && isOn(kid(kid(tr, 'trPr'), 'tblHeader'))) firstRowRepeats = true
+      let c = Number(attr(kid(kid(tr, 'trPr'), 'gridBefore'), 'val') ?? 0) || 0
       for (const tc of tableCells(tr)) {
         const tcPr = kid(tc, 'tcPr')
-        const span = Number(attr(kid(tcPr, 'gridSpan'), 'val') ?? 1) || 1
+        const span = Math.max(1, Number(attr(kid(tcPr, 'gridSpan'), 'val') ?? 1) || 1)
         const vMerge = kid(tcPr, 'vMerge')
-        const continued = vMerge && (attr(vMerge, 'val') ?? 'continue') === 'continue'
-        const paragraphs: Run[][] = []
-        if (!continued) {
-          collectCellParagraphs(tc, ctx, paragraphs, images)
+        const continued = !!vMerge && (attr(vMerge, 'val') ?? 'continue') === 'continue'
+        const above = continued ? grid[r - 1]?.[c] : undefined
+        if (above) {
+          // 縦の結合の続き:上のセルを1行のばす(このマスにはセルを作らない)
+          if ((colOf.get(above) ?? -1) === c) above.rowspan = (above.rowspan ?? 1) + 1
+          for (let i = 0; i < span; i++) grid[r][c + i] = above
+          c += span
+          continue
         }
-        if (span > 1 || vMerge) addIssue(ctx.issues, 'mergedCell')
-        row.push({ paragraphs, bg: nearestMarkerColor(attr(kid(tcPr, 'shd'), 'fill')) })
-        for (let i = 1; i < span; i++) row.push({ paragraphs: [], bg: null })
+        const paragraphs: Run[][] = []
+        collectCellParagraphs(tc, ctx, paragraphs, images)
+        const fill = attr(kid(tcPr, 'shd'), 'fill')
+        const isHead = !!fill && fill.replace('#', '').toLowerCase() === TABLE_HEAD_HEX
+        const cell: TableCellBlock = { paragraphs, bg: isHead ? null : nearestMarkerColor(fill) }
+        if (isHead) headFill.add(cell)
+        if (span > 1) cell.colspan = span
+        const align = cellAlign(tc)
+        if (align) cell.align = align
+        colOf.set(cell, c)
+        for (let i = 0; i < span; i++) grid[r][c + i] = cell
+        row.push(cell)
+        c += span
       }
       rows.push(row)
-    }
+    })
     this.resetList()
-    if (rows.length) this.push({ kind: 'table', rows })
+    if (rows.length) {
+      const first = rows[0]
+      const headerRow = firstRowRepeats || (first.length > 0 && first.every((cell) => headFill.has(cell)))
+      const firstCol = rows.map((row) => row.find((cell) => colOf.get(cell) === 0)).filter((cell) => !!cell)
+      const headerColumn = rows.length >= 2 && firstCol.length > 0 && firstCol.every((cell) => headFill.has(cell))
+      // 見出しにならなかった所の見出しの色は、灰色のセルとして残す
+      for (const cell of headFill) {
+        const inHead = (headerRow && first.includes(cell)) || (headerColumn && colOf.get(cell) === 0)
+        if (!inHead) cell.bg = 'gray'
+      }
+      this.push({ kind: 'table', rows, headerRow, headerColumn, colWidths: fixedColumnWidths(tbl) })
+    }
     if (images.length) {
       addIssue(ctx.issues, 'imageInTable', images.length)
       for (const key of images) this.push({ kind: 'image', key })
       this.lastWasTable = true
     }
   }
+}
+
+/** 列の幅(px)。幅を固定した表(w:tblLayout が fixed)だけ。そのほかは undefined(中身に合わせる) */
+function fixedColumnWidths(tbl: Element): (number | null)[] | undefined {
+  if (attr(kid(kid(tbl, 'tblPr'), 'tblLayout'), 'type') !== 'fixed') return undefined
+  const cols = kids(kid(tbl, 'tblGrid'), 'gridCol').map((g) => Number(attr(g, 'w')))
+  if (cols.length === 0 || !cols.every((w) => w > 0)) return undefined
+  // Word の 15 twip が画面の 1px(96dpi)
+  return cols.map((w) => Math.round(w / 15))
+}
+
+/** セルの段落の配置(すべて同じ中央・右のときだけ。左・両端・ばらばらは null) */
+function cellAlign(tc: Element): CellAlign | null {
+  const values = new Set<string>()
+  for (const p of kids(tc, 'p')) {
+    const jc = attr(kid(kid(p, 'pPr'), 'jc'), 'val') ?? 'left'
+    values.add(jc === 'end' ? 'right' : jc === 'start' || jc === 'both' || jc === 'distribute' ? 'left' : jc)
+  }
+  if (values.size !== 1) return null
+  const [v] = values
+  return v === 'center' || v === 'right' ? v : null
 }
 
 /** 行の中のセル(<w:sdt> などの中にあるものも) */

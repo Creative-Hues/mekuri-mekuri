@@ -193,15 +193,17 @@ function listBlocks(out: ImportBlock[], list: Tokens.List, depth: number, ctx: C
   })
 }
 
+/** Markdown の表:1行目は見出しの行にする。列の配置(:---: ・ ---:)はセルの配置にする */
 function tableBlock(token: Tokens.Table, ctx: Ctx): ImportBlock {
-  const cell = (c: Tokens.TableCell): TableCellBlock => {
+  const cell = (c: Tokens.TableCell, i: number): TableCellBlock => {
     const images: string[] = []
     const paragraphs = splitLines(inlineRuns(c.tokens, ctx, {}, images))
     // 表の中には画像を入れられないので、文字にする
     if (images.length) paragraphs.push(images.map(() => ({ text: '[画像]' })))
-    return { paragraphs, bg: null }
+    const align = token.align?.[i]
+    return align === 'center' || align === 'right' ? { paragraphs, bg: null, align } : { paragraphs, bg: null }
   }
-  return { kind: 'table', rows: [token.header.map(cell), ...token.rows.map((r) => r.map(cell))] }
+  return { kind: 'table', rows: [token.header.map(cell), ...token.rows.map((r) => r.map(cell))], headerRow: true }
 }
 
 /** ブロックのトークンを、読み込みのブロックにする */

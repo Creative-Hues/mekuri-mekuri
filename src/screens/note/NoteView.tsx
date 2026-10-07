@@ -44,7 +44,8 @@ import { setActiveSession, takePendingJump, type SearchJump } from './jump'
 import { findOccurrence } from '../../search/search'
 import { searchHighlightKey } from '../../editor/searchHighlight'
 import { loadExportSource, type ExportSource } from '../../export/load'
-import { exportNoteFile, FORMAT_LABELS, type FileFormat } from '../../export/exportNote'
+import { exportNoteFile } from '../../export/exportNote'
+import { chooseExportFormat, showExportNotices } from '../../export/chooseFormat'
 import { PrintView } from '../../export/PrintView'
 import { openSearch } from '../../search/openSearch'
 
@@ -577,52 +578,18 @@ export function NoteView({
 
   const exportNote = async () => {
     setMenuOpen(false)
-    // PDF のページ番号を入れるか(初めはオン。ダイアログの中のチェックで変える)
-    let pageNumbers = true
-    const format = await dialog.choose<'pdf' | FileFormat | null>({
-      title: 'ノートを書き出す',
-      message: (
-        <>
-          <p>このノートを、どの形式で書き出しますか？(ゴミ箱のページは入りません)</p>
-          <ul className="export-help">
-            <li>PDF:見た目をほぼそのまま。印刷画面が開くので「PDFとして保存」を選んでください</li>
-            <li>Word:見出し・装飾・リスト・表・画像</li>
-            <li>Markdown:ほかのノートアプリへ移す用(色は消え、画像は「[画像]」になります)</li>
-            <li>テキスト:文字だけ</li>
-          </ul>
-          <label className="export-option">
-            <input
-              type="checkbox"
-              defaultChecked
-              onChange={(e) => {
-                pageNumbers = e.target.checked
-              }}
-            />
-            PDF にページ番号を入れる(紙の下の中央に「1 / 6」の形で)
-          </label>
-          {/* 紙の分け方は A4・倍率100% で決めているので、印刷画面の設定を案内する */}
-          <p className="export-note">
-            PDF は A4・倍率100%で印刷してください。印刷画面の「ヘッダーとフッター」はオフにしてください。
-          </p>
-        </>
-      ),
-      cancelValue: null,
-      buttons: [
-        { label: 'キャンセル', value: null, kind: 'plain' },
-        { label: FORMAT_LABELS.txt, value: 'txt', kind: 'plain' },
-        { label: FORMAT_LABELS.md, value: 'md', kind: 'plain' },
-        { label: FORMAT_LABELS.docx, value: 'docx', kind: 'plain' },
-        { label: FORMAT_LABELS.pdf, value: 'pdf', kind: 'primary' },
-      ],
-    })
-    if (!format) return
-    if (format === 'pdf') {
-      await printNote(pageNumbers)
+    const choice = await chooseExportFormat(dialog)
+    if (!choice) return
+    if (choice.format === 'pdf') {
+      await printNote(choice.pageNumbers)
       return
     }
+    const format = choice.format
     try {
       const source = await loadForExport()
-      if (source) await exportNoteFile(source, format)
+      if (!source) return
+      const notices = await exportNoteFile(source, format)
+      await showExportNotices(dialog, format, notices)
     } catch (e) {
       console.error(e)
       await dialog.alert({ message: '書き出しに失敗しました。' })
@@ -917,7 +884,7 @@ export function NoteView({
         />
       )}
 
-      {printJob && <PrintView source={printJob.source} job={printJob.job} pageNumbers={printJob.pageNumbers} />}
+      {printJob && <PrintView sources={[printJob.source]} job={printJob.job} pageNumbers={printJob.pageNumbers} />}
     </div>
   )
 }

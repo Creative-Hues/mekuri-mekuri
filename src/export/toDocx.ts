@@ -11,6 +11,7 @@ import {
   ShadingType,
   Table,
   TableCell,
+  TableLayoutType,
   TableRow,
   TextRun,
   UnderlineType,
@@ -18,8 +19,8 @@ import {
   type ParagraphChild,
 } from 'docx'
 import type { LineStyleName } from '../editor/palette'
-import { MARKER_HEX, TEXT_HEX } from './colors'
-import type { Block, ExportNote, Run } from './model'
+import { MARKER_HEX, TABLE_HEAD_HEX, TEXT_HEX } from './colors'
+import { tableGrid, type Block, type ExportNote, type Run, type TableBlock } from './model'
 import { stickyLabel } from './stickyLabel'
 
 /**
@@ -96,19 +97,70 @@ function imageParagraph(b: Extract<Block, { kind: 'image' }>, images: Map<string
   })
 }
 
-function tableOf(b: Extract<Block, { kind: 'table' }>): Table {
-  const cols = Math.max(1, ...b.rows.map((r) => r.length))
+/** 表の見出しのセルの段落スタイル(太字。文字そのものは太字にしないので、読み込むと元の文字に戻る) */
+const TABLE_HEAD_STYLE = 'MekuriTableHead'
+/** 本文の幅(twip)。A4(11906)から左右の余白(1440 ずつ)を引いた幅 */
+const BODY_WIDTH = 11906 - 1440 * 2
+/** 画面の 1px は Word の 15 twip(96dpi) */
+const TWIP_PER_PX = 15
+
+/**
+ * 列の幅(twip)。幅を決めた列のある表だけ。決めていない列は、決めた列の平均の幅にする。
+ * 本文の幅より広い表は、比率を保って本文の幅に収める
+ */
+export function docxColumnWidths(colWidths: (number | null)[] | undefined, cols: number): number[] | null {
+  const ws = Array.from({ length: cols }, (_, i) => colWidths?.[i] ?? null)
+  const known = ws.filter((w): w is number => typeof w === 'number' && w > 0)
+  if (known.length === 0) return null
+  const avg = known.reduce((a, b) => a + b, 0) / known.length
+  const twips = ws.map((w) => Math.round((w ?? avg) * TWIP_PER_PX))
+  const total = twips.reduce((a, b) => a + b, 0)
+  if (total <= BODY_WIDTH) return twips
+  return twips.map((t) => Math.floor((t * BODY_WIDTH) / total))
+}
+
+const ALIGNMENT = { center: AlignmentType.CENTER, right: AlignmentType.RIGHT } as const
+
+/**
+ * 表。結合(gridSpan・vMerge)・列の幅・セルごとの配置・見出しの行(太字+見出しの色+各ページの先頭に繰り返す)・
+ * 見出しの列(太字+見出しの色)・セルの色を、Word の表の機能でそのまま出す
+ */
+function tableOf(b: TableBlock): Table {
+  const grid = tableGrid(b.rows)
+  const cols = Math.max(1, grid[0]?.length ?? 0)
+  const widths = docxColumnWidths(b.colWidths, cols)
+  /** セルの左上のマスの列 */
+  const colOf = new Map(grid.flatMap((g) => g.filter((s) => s.origin).map((s) => [s.cell, s.col] as const)))
   return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
+    ...(widths
+      ? { columnWidths: widths, width: { size: widths.reduce((a, b) => a + b, 0), type: WidthType.DXA }, layout: TableLayoutType.FIXED }
+      : { width: { size: 100, type: WidthType.PERCENTAGE } }),
     rows: b.rows.map(
-      (row) =>
+      (row, r) =>
         new TableRow({
-          children: Array.from({ length: cols }, (_, i) => {
-            const cell = row[i]
-            const paragraphs = cell && cell.paragraphs.length > 0 ? cell.paragraphs : [[]]
+          tableHeader: !!b.headerRow && r === 0,
+          children: row.map((cell) => {
+            const col = colOf.get(cell) ?? 0
+            const colspan = Math.max(1, cell.colspan ?? 1)
+            const rowspan = Math.max(1, Math.min(cell.rowspan ?? 1, b.rows.length - r))
+            const head = (!!b.headerRow && r === 0) || (!!b.headerColumn && col === 0)
+            const fill = cell.bg ? MARKER_HEX[cell.bg] : head ? TABLE_HEAD_HEX : null
+            const paragraphs = cell.paragraphs.length > 0 ? cell.paragraphs : [[]]
             return new TableCell({
-              children: paragraphs.map((p) => new Paragraph({ children: runsToChildren(p) })),
-              shading: cell?.bg ? { type: ShadingType.CLEAR, fill: MARKER_HEX[cell.bg], color: 'auto' } : undefined,
+              columnSpan: colspan > 1 ? colspan : undefined,
+              rowSpan: rowspan > 1 ? rowspan : undefined,
+              width: widths
+                ? { size: widths.slice(col, col + colspan).reduce((a, b) => a + b, 0), type: WidthType.DXA }
+                : undefined,
+              shading: fill ? { type: ShadingType.CLEAR, fill, color: 'auto' } : undefined,
+              children: paragraphs.map(
+                (p) =>
+                  new Paragraph({
+                    style: head ? TABLE_HEAD_STYLE : undefined,
+                    alignment: cell.align ? ALIGNMENT[cell.align] : undefined,
+                    children: runsToChildren(p),
+                  }),
+              ),
             })
           }),
         }),
@@ -192,6 +244,7 @@ export function buildDocx(note: ExportNote, images: Map<string, DocxImage>): Doc
     title: note.title,
     styles: {
       default: { document: { run: { font: { ascii: FONT, eastAsia: FONT, hAnsi: FONT } } } },
+      paragraphStyles: [{ id: TABLE_HEAD_STYLE, name: '表の見出し', basedOn: 'Normal', run: { bold: true } }],
     },
     numbering: {
       config: [

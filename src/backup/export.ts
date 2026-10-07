@@ -4,7 +4,8 @@ import { APP_VERSION } from '../version'
 import { toBase64, type Backup } from './format'
 import { downloadBlob } from '../export/download'
 
-function stamp(d: Date): string {
+/** ファイル名に付ける日時(YYYYMMDD-HHMM) */
+export function stamp(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`
 }
