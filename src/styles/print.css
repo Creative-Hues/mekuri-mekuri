@@ -21,6 +21,33 @@
   pointer-events: none;
 }
 
+/*
+ * iPhone・iPad でアプリの中で PDF を作るとき(PdfFileView.tsx)、画像にする紙を1枚だけ置く所。
+ * 測るときと同じ幅にする(折り返しがずれないように)。画像にするため visibility は隠さず、画面の外に置く
+ */
+.print-root.pdf-stage {
+  display: block;
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 186mm;
+  pointer-events: none;
+}
+/*
+ * 画像にすると、表の枠が切り取る範囲の端の丸めで、表のいちばん下の線が消えることがあるため、切り取らない。
+ * 表の枠はグリッドの中のものなので、切り取りをやめても並びは変わらない(測るときも同じ指定にする)
+ */
+.print-root.pdf-measure .table-scroll,
+.print-root.pdf-stage .table-scroll {
+  overflow: visible;
+}
+@media print {
+  /* アプリの中で PDF を作っている途中に印刷されても、作業用の紙は印刷しない */
+  .print-root.pdf-stage {
+    display: none;
+  }
+}
+
 /* 紙1枚 */
 .print-sheet {
   position: relative;

@@ -45,8 +45,10 @@ import { findOccurrence } from '../../search/search'
 import { searchHighlightKey } from '../../editor/searchHighlight'
 import { loadExportSource, type ExportSource } from '../../export/load'
 import { exportNoteFile } from '../../export/exportNote'
-import { chooseExportFormat, showExportNotices } from '../../export/chooseFormat'
+import { chooseExportFormat, showExportNotices, showPdfResult } from '../../export/chooseFormat'
 import { PrintView } from '../../export/PrintView'
+import { PdfFileView } from '../../export/PdfFileView'
+import { PDF_IN_APP } from '../../export/device'
 import { openSearch } from '../../search/openSearch'
 
 /** 表示中のページの前後、これだけの範囲はエディタを作っておく(スワイプ先がすぐ表示されるように) */
@@ -884,7 +886,21 @@ export function NoteView({
         />
       )}
 
-      {printJob && <PrintView sources={[printJob.source]} job={printJob.job} pageNumbers={printJob.pageNumbers} />}
+      {printJob &&
+        (PDF_IN_APP ? (
+          // iPhone・iPad:印刷画面を使わず、アプリの中で PDF を作る(終わったら閉じる)
+          <PdfFileView
+            key={printJob.job}
+            sources={[printJob.source]}
+            pageNumbers={printJob.pageNumbers}
+            onDone={(result) => {
+              setPrintJob(null)
+              void showPdfResult(dialog, result)
+            }}
+          />
+        ) : (
+          <PrintView sources={[printJob.source]} job={printJob.job} pageNumbers={printJob.pageNumbers} />
+        ))}
     </div>
   )
 }

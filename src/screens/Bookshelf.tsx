@@ -26,8 +26,10 @@ import { ButtonTips } from '../help/ButtonTips'
 import { useLayoutMode } from '../layout/useLayoutMode'
 import { loadExportSource, type ExportSource } from '../export/load'
 import { exportNotesFile } from '../export/exportNote'
-import { chooseExportFormat, showExportNotices } from '../export/chooseFormat'
+import { chooseExportFormat, showExportNotices, showPdfResult } from '../export/chooseFormat'
 import { PrintView } from '../export/PrintView'
+import { PdfFileView } from '../export/PdfFileView'
+import { PDF_IN_APP } from '../export/device'
 import { ShelfHeaderButton, ShelfSelectButton, shelfButtonAttrs } from './shelfButtons'
 import { ShelfHelp } from './ShelfHelp'
 import { useFileImport } from './FileImport'
@@ -307,7 +309,21 @@ export function Bookshelf() {
         </div>
       )}
 
-      {printJob && <PrintView sources={printJob.sources} job={printJob.job} pageNumbers={printJob.pageNumbers} />}
+      {printJob &&
+        (PDF_IN_APP ? (
+          // iPhone・iPad:印刷画面を使わず、アプリの中で PDF を作る(終わったら閉じる)
+          <PdfFileView
+            key={printJob.job}
+            sources={printJob.sources}
+            pageNumbers={printJob.pageNumbers}
+            onDone={(result) => {
+              setPrintJob(null)
+              void showPdfResult(dialog, result)
+            }}
+          />
+        ) : (
+          <PrintView sources={printJob.sources} job={printJob.job} pageNumbers={printJob.pageNumbers} />
+        ))}
     </div>
   )
 }

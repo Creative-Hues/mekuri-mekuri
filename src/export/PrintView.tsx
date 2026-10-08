@@ -72,7 +72,7 @@ function PrintSticky({ sticky }: { sticky: Sticky }) {
 }
 
 /** 1ページ分の中身(本文と付箋) */
-function PageContent({ page }: { page: Page }) {
+export function PageContent({ page }: { page: Page }) {
   return (
     <div className="page-content">
       <ReadOnlyEditor content={page.content} />
@@ -84,7 +84,7 @@ function PageContent({ page }: { page: Page }) {
 }
 
 /** 画像の読み込みが終わるまで待つ(長くても timeout ミリ秒まで) */
-async function waitForImages(root: HTMLElement | null, timeout = 10_000): Promise<void> {
+export async function waitForImages(root: HTMLElement | null, timeout = 10_000): Promise<void> {
   if (!root) return
   const until = Date.now() + timeout
   while (root.querySelector('.image-block.is-loading') && Date.now() < until) {
@@ -94,7 +94,7 @@ async function waitForImages(root: HTMLElement | null, timeout = 10_000): Promis
   await Promise.all(imgs.map((img) => img.decode().catch(() => {})))
 }
 
-const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(null)))
+export const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(null)))
 
 /**
  * 切ってはいけないもの(行の途中で切れると読めなくなるもの)。
@@ -139,7 +139,7 @@ interface Layout {
  * (iPhone では印刷画面が閉じる前に afterprint が来ることがあり、すぐ消すと白紙になるおそれがあるため)
  */
 /** ノートの紙のデザイン(背景色・縁・本文の書体) */
-function paperOf(source: ExportSource): { className: string; style: CSSProperties } {
+export function paperOf(source: ExportSource): { className: string; style: CSSProperties } {
   const design = normalizeDesign(source.note.design)
   const paper = paperColor(design.paper)
   const border = borderWidth(design.border.width)
